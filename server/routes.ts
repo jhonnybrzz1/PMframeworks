@@ -125,15 +125,39 @@ INSTRUÇÕES:
       const mistralData = await mistralResponse.json();
       const analysisText = mistralData.choices[0].message.content;
 
-      // Parse the structured response
-      const sections = analysisText.split(/\*\*\d+\.\s*/).filter((section: string) => section.trim());
+      // Parse the structured response - improved parsing logic
+      console.log("Raw analysis from Mistral:", analysisText);
+      
+      // Extract sections using more flexible patterns
+      const summaryMatch = analysisText.match(/(?:\*\*)?1\.?\s*Resumo[\s\S]*?\*\*([\s\S]*?)(?=\*\*2\.|$)/i);
+      const strengthsMatch = analysisText.match(/(?:\*\*)?2\.?\s*Pontos Fortes[\s\S]*?\*\*([\s\S]*?)(?=\*\*3\.|$)/i);
+      const gapsMatch = analysisText.match(/(?:\*\*)?3\.?\s*Lacunas[\s\S]*?\*\*([\s\S]*?)(?=\*\*4\.|$)/i);
+      const recommendationsMatch = analysisText.match(/(?:\*\*)?4\.?\s*Recomendações[\s\S]*?\*\*([\s\S]*?)(?=\*\*5\.|$)/i);
+      const frameworkMatch = analysisText.match(/(?:\*\*)?5\.?\s*Framework[\s\S]*?\*\*([\s\S]*?)$/i);
+      
+      // If structured parsing fails, try a simpler approach
+      let summary = summaryMatch?.[1]?.trim() || "";
+      let strengths = strengthsMatch?.[1]?.trim().split('\n').filter((s: string) => s.trim()) || [];
+      let gaps = gapsMatch?.[1]?.trim().split('\n').filter((s: string) => s.trim()) || [];
+      let recommendations = recommendationsMatch?.[1]?.trim() || "";
+      let frameworkUsed = frameworkMatch?.[1]?.trim() || framework;
+      
+      // Fallback: if no structured content found, use the full text
+      if (!summary && !strengths.length && !gaps.length && !recommendations) {
+        summary = analysisText.substring(0, 500) + "...";
+        strengths = ["Análise completa disponível no texto principal"];
+        gaps = ["Consulte a análise completa para detalhes"];
+        recommendations = analysisText.length > 500 ? analysisText.substring(500, 1000) + "..." : analysisText;
+        frameworkUsed = `Análise usando ${framework}`;
+      }
       
       const analysis = {
-        summary: sections[0]?.replace(/Resumo do Documento Recebido\*\*/i, "").trim() || "",
-        strengths: sections[1]?.replace(/Pontos Fortes segundo o framework[\s\S]*?\*\*/i, "").trim().split('\n').filter((s: string) => s.trim()) || [],
-        gaps: sections[2]?.replace(/Lacunas ou Pontos Fracos[\s\S]*?\*\*/i, "").trim().split('\n').filter((s: string) => s.trim()) || [],
-        recommendations: sections[3]?.replace(/Recomendações Práticas[\s\S]*?\*\*/i, "").trim() || "",
-        framework: sections[4]?.replace(/Framework Utilizado[\s\S]*?\*\*/i, "").trim() || framework,
+        summary,
+        strengths,
+        gaps,
+        recommendations,
+        framework: frameworkUsed,
+        fullText: analysisText // Keep full text as backup
       };
 
       // Save analysis to storage

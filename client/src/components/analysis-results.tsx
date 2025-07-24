@@ -38,7 +38,7 @@ export default function AnalysisResults({ analysis }: AnalysisResultsProps) {
   const { data: recentAnalyses = [] } = useQuery({
     queryKey: ["/api/analyses/recent"],
     enabled: true,
-  });
+  }) as { data: any[] };
 
   const handleCopy = async (content: string, section: string) => {
     try {

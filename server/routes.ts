@@ -106,12 +106,12 @@ Por favor, forneça uma análise crítica estruturada seguindo exatamente o form
       const analysisText = mistralData.choices[0].message.content;
 
       // Parse the structured response
-      const sections = analysisText.split(/\*\*\d+\.\s*/).filter(section => section.trim());
+      const sections = analysisText.split(/\*\*\d+\.\s*/).filter((section: string) => section.trim());
       
       const analysis = {
         summary: sections[0]?.replace(/Resumo do Documento Recebido\*\*/i, "").trim() || "",
-        strengths: sections[1]?.replace(/Pontos Fortes segundo o framework[\s\S]*?\*\*/i, "").trim().split('\n').filter(s => s.trim()) || [],
-        gaps: sections[2]?.replace(/Lacunas ou Pontos Fracos[\s\S]*?\*\*/i, "").trim().split('\n').filter(s => s.trim()) || [],
+        strengths: sections[1]?.replace(/Pontos Fortes segundo o framework[\s\S]*?\*\*/i, "").trim().split('\n').filter((s: string) => s.trim()) || [],
+        gaps: sections[2]?.replace(/Lacunas ou Pontos Fracos[\s\S]*?\*\*/i, "").trim().split('\n').filter((s: string) => s.trim()) || [],
         recommendations: sections[3]?.replace(/Recomendações Práticas[\s\S]*?\*\*/i, "").trim() || "",
         framework: sections[4]?.replace(/Framework Utilizado[\s\S]*?\*\*/i, "").trim() || framework,
       };

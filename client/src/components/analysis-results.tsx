@@ -38,9 +38,10 @@ interface AnalysisResult {
 
 interface AnalysisResultsProps {
   analysis: AnalysisResult | null;
+  inputText?: string;
 }
 
-export default function AnalysisResults({ analysis }: AnalysisResultsProps) {
+export default function AnalysisResults({ analysis, inputText }: AnalysisResultsProps) {
   const { toast } = useToast();
   const [copiedSection, setCopiedSection] = useState<string | null>(null);
 
@@ -193,6 +194,11 @@ Gerado por Frameworks - Análise Crítica para PMs
       pdf.setFontSize(12);
       pdf.setFont('helvetica', 'normal');
       pdf.text(`Framework: ${analysis.framework}`, margin, 35);
+      
+      // Add document name if available
+      const docName = inputText?.substring(0, 60).replace(/[^\w\s]/g, '').trim() || 'Documento';
+      pdf.setFontSize(10);
+      pdf.text(`Documento: ${docName}...`, margin, 42);
       
       // Date
       const now = new Date();

@@ -112,53 +112,120 @@ Gerado por Frameworks - Análise Crítica para PMs
     if (!analysis) return;
 
     try {
-      const analysisElement = document.getElementById('analysis-content');
-      if (!analysisElement) return;
-
-      // Temporarily show all content for PDF generation
-      const tabsElements = analysisElement.querySelectorAll('[data-state="inactive"]');
-      tabsElements.forEach(el => {
-        (el as HTMLElement).style.display = 'block';
-      });
-
-      const canvas = await html2canvas(analysisElement, {
-        scale: 2,
-        backgroundColor: '#ffffff',
-        useCORS: true,
-        allowTaint: true,
-      });
-
-      // Restore original display
-      tabsElements.forEach(el => {
-        (el as HTMLElement).style.display = '';
-      });
-
-      const imgData = canvas.toDataURL('image/png');
       const pdf = new jsPDF('p', 'mm', 'a4');
-      const imgWidth = 210;
-      const pageHeight = 295;
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
-      let heightLeft = imgHeight;
+      const pageWidth = 210;
+      const pageHeight = 297;
+      const margin = 20;
+      const contentWidth = pageWidth - 2 * margin;
+      let yPosition = margin;
 
-      let position = 0;
+      // Helper function to add text with word wrapping
+      const addWrappedText = (text: string, fontSize: number = 10, isBold: boolean = false) => {
+        pdf.setFontSize(fontSize);
+        if (isBold) {
+          pdf.setFont('helvetica', 'bold');
+        } else {
+          pdf.setFont('helvetica', 'normal');
+        }
+        
+        const lines = pdf.splitTextToSize(text, contentWidth);
+        const lineHeight = fontSize * 0.5;
+        
+        lines.forEach((line: string) => {
+          if (yPosition + lineHeight > pageHeight - margin) {
+            pdf.addPage();
+            yPosition = margin;
+          }
+          pdf.text(line, margin, yPosition);
+          yPosition += lineHeight;
+        });
+        
+        return yPosition;
+      };
 
-      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-      heightLeft -= pageHeight;
+      // Helper function to add a section with colored header
+      const addSection = (title: string, content: string | string[], color: [number, number, number] = [0, 0, 0]) => {
+        // Add some space before section
+        yPosition += 8;
+        
+        // Check if we need a new page
+        if (yPosition > pageHeight - 50) {
+          pdf.addPage();
+          yPosition = margin;
+        }
 
-      while (heightLeft >= 0) {
-        position = heightLeft - imgHeight;
-        pdf.addPage();
-        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-        heightLeft -= pageHeight;
+        // Section header with colored background
+        pdf.setFillColor(color[0], color[1], color[2]);
+        pdf.rect(margin, yPosition - 6, contentWidth, 12, 'F');
+        
+        pdf.setTextColor(255, 255, 255);
+        pdf.setFontSize(12);
+        pdf.setFont('helvetica', 'bold');
+        pdf.text(title, margin + 5, yPosition);
+        yPosition += 10;
+
+        // Reset text color
+        pdf.setTextColor(0, 0, 0);
+        
+        // Section content
+        if (Array.isArray(content)) {
+          content.forEach((item, index) => {
+            const cleanItem = item.replace(/^[•\-\*✅❌]\s*/, '').trim();
+            yPosition = addWrappedText(`• ${cleanItem}`, 10);
+            yPosition += 2;
+          });
+        } else {
+          yPosition = addWrappedText(content, 10);
+        }
+        
+        yPosition += 5;
+      };
+
+      // PDF Header
+      pdf.setFillColor(33, 150, 243);
+      pdf.rect(0, 0, pageWidth, 40, 'F');
+      
+      pdf.setTextColor(255, 255, 255);
+      pdf.setFontSize(20);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('Análise Crítica - Frameworks PM', margin, 25);
+      
+      pdf.setFontSize(12);
+      pdf.setFont('helvetica', 'normal');
+      pdf.text(`Framework: ${analysis.framework}`, margin, 35);
+      
+      // Date
+      const now = new Date();
+      pdf.text(`Data: ${now.toLocaleDateString('pt-BR')}`, pageWidth - margin - 50, 35);
+      
+      yPosition = 50;
+      pdf.setTextColor(0, 0, 0);
+
+      // Add sections with different colors
+      addSection('1. Resumo do Conteúdo Recebido', analysis.summary, [33, 150, 243]); // Blue
+      addSection('2. Pontos Fortes segundo o framework', analysis.strengths, [76, 175, 80]); // Green
+      addSection('3. Lacunas ou Pontos Fracos', analysis.gaps, [244, 67, 54]); // Red
+      addSection('4. Recomendações Práticas', analysis.recommendations, [255, 152, 0]); // Orange
+      addSection('5. Framework Utilizado', analysis.framework, [156, 39, 176]); // Purple
+
+      // Footer
+      const totalPages = pdf.internal.pages.length - 1;
+      for (let i = 1; i <= totalPages; i++) {
+        pdf.setPage(i);
+        pdf.setFontSize(8);
+        pdf.setTextColor(128, 128, 128);
+        pdf.text(`Página ${i} de ${totalPages}`, pageWidth - margin - 20, pageHeight - 10);
+        pdf.text('Gerado por Frameworks - Análise Crítica para PMs', margin, pageHeight - 10);
       }
 
       pdf.save(`analise-frameworks-${Date.now()}.pdf`);
 
       toast({
         title: "PDF Exportado",
-        description: "Análise exportada como arquivo PDF com sucesso.",
+        description: "Análise exportada como PDF estruturado com sucesso.",
       });
     } catch (error) {
+      console.error('PDF export error:', error);
       toast({
         title: "Erro na exportação",
         description: "Não foi possível gerar o PDF. Tente novamente.",
@@ -185,9 +252,10 @@ Gerado por Frameworks - Análise Crítica para PMs
                 <div className="flex items-center justify-between mb-4">
                   <div>
                     <CardTitle className="text-xl font-bold text-slate-900">Análise Crítica</CardTitle>
-                    <p className="text-sm text-slate-600 mt-1">
-                      Análise baseada no framework <Badge variant="secondary">{analysis.framework}</Badge>
-                    </p>
+                    <div className="text-sm text-slate-600 mt-1 flex items-center gap-2">
+                      <span>Análise baseada no framework</span>
+                      <Badge variant="secondary">{analysis.framework}</Badge>
+                    </div>
                   </div>
                   
                   <div className="flex space-x-2">

@@ -265,6 +265,10 @@ Gerado por Frameworks - Análise Crítica para PMs
                   </div>
                   
                   <div className="flex space-x-2">
+                    <div className="text-xs text-slate-500 mr-4 flex items-center">
+                      <Calendar className="h-3 w-3 mr-1" />
+                      {new Date().toLocaleDateString('pt-BR')}
+                    </div>
                     <Button
                       variant="outline"
                       size="sm"

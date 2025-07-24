@@ -11,7 +11,7 @@ import { FRAMEWORKS, type FrameworkInfo } from "@/types/analysis";
 import { ChartLine, Upload, Trash2, Info, Loader2 } from "lucide-react";
 
 interface FrameworkAnalyzerProps {
-  onAnalysisComplete: (analysis: any) => void;
+  onAnalysisComplete: (analysis: any, inputText: string) => void;
 }
 
 export default function FrameworkAnalyzer({ onAnalysisComplete }: FrameworkAnalyzerProps) {
@@ -25,7 +25,7 @@ export default function FrameworkAnalyzer({ onAnalysisComplete }: FrameworkAnaly
     mutationFn: analyzeDocument,
     onSuccess: (data) => {
       if (data.success && data.analysis) {
-        onAnalysisComplete(data.analysis);
+        onAnalysisComplete(data.analysis, documentText);
         toast({
           title: "Análise concluída",
           description: "Documento analisado com sucesso!",

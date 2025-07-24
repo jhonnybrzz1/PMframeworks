@@ -14,9 +14,11 @@ interface AnalysisResult {
 
 export default function Home() {
   const [currentAnalysis, setCurrentAnalysis] = useState<AnalysisResult | null>(null);
+  const [currentInputText, setCurrentInputText] = useState<string>("");
 
-  const handleAnalysisComplete = (analysis: AnalysisResult) => {
+  const handleAnalysisComplete = (analysis: AnalysisResult, inputText: string) => {
     setCurrentAnalysis(analysis);
+    setCurrentInputText(inputText);
   };
 
   return (
@@ -55,7 +57,7 @@ export default function Home() {
 
           {/* Analysis Results */}
           <div className="lg:col-span-7">
-            <AnalysisResults analysis={currentAnalysis} />
+            <AnalysisResults analysis={currentAnalysis} inputText={currentInputText} />
           </div>
         </div>
       </main>

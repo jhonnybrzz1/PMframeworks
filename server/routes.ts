@@ -169,12 +169,23 @@ Uma frase sobre como o ${framework} foi aplicado.
         frameworkUsed = `Análise usando ${framework}`;
       }
       
+      // Calculate quality score based on content completeness
+      const qualityScore = Math.min(100, Math.round(
+        (summary.length > 50 ? 20 : 10) + 
+        (strengths.length * 15) + 
+        (gaps.length * 15) + 
+        (recommendations.length > 100 ? 25 : 10) + 
+        (frameworkUsed.length > 10 ? 15 : 5)
+      ));
+
       const analysis = {
         summary,
         strengths,
         gaps,
         recommendations,
         framework: frameworkUsed,
+        qualityScore,
+        generatedAt: new Date().toISOString(),
         fullText: analysisText // Keep full text as backup
       };
 

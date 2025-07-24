@@ -8,7 +8,7 @@ import { useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { analyzeDocument, uploadFile } from "@/lib/api";
 import { FRAMEWORKS, type FrameworkInfo } from "@/types/analysis";
-import { ChartLine, Upload, Trash2, Info, Loader2 } from "lucide-react";
+import { ChartLine, Upload, Trash2, Info, Loader2, Star, Heart } from "lucide-react";
 
 interface FrameworkAnalyzerProps {
   onAnalysisComplete: (analysis: any, inputText: string) => void;
@@ -18,6 +18,10 @@ export default function FrameworkAnalyzer({ onAnalysisComplete }: FrameworkAnaly
   const [selectedFramework, setSelectedFramework] = useState<string>("");
   const [documentText, setDocumentText] = useState<string>("");
   const [selectedFrameworkInfo, setSelectedFrameworkInfo] = useState<FrameworkInfo | null>(null);
+  const [favoriteFrameworks, setFavoriteFrameworks] = useState<string[]>(() => {
+    const saved = localStorage.getItem('favoriteFrameworks');
+    return saved ? JSON.parse(saved) : [];
+  });
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
@@ -69,6 +73,19 @@ export default function FrameworkAnalyzer({ onAnalysisComplete }: FrameworkAnaly
     setSelectedFramework(value);
     const framework = FRAMEWORKS.find(f => f.id === value);
     setSelectedFrameworkInfo(framework || null);
+  };
+
+  const toggleFavorite = (frameworkId: string) => {
+    const newFavorites = favoriteFrameworks.includes(frameworkId)
+      ? favoriteFrameworks.filter(id => id !== frameworkId)
+      : [...favoriteFrameworks, frameworkId];
+    
+    setFavoriteFrameworks(newFavorites);
+    localStorage.setItem('favoriteFrameworks', JSON.stringify(newFavorites));
+    toast({
+      title: favoriteFrameworks.includes(frameworkId) ? "Removido dos favoritos" : "Adicionado aos favoritos",
+      description: "Framework atualizado em seus favoritos.",
+    });
   };
 
   const handleAnalyze = () => {
@@ -188,14 +205,45 @@ export default function FrameworkAnalyzer({ onAnalysisComplete }: FrameworkAnaly
                   placeholder="Ou cole seu texto aqui (PRD, pitch, user story, briefing)..."
                   className="min-h-32 resize-y"
                 />
+                <div className="text-xs text-slate-500 mt-1 flex justify-between">
+                  <span>{documentText.length} caracteres</span>
+                  <span className={documentText.length < 100 ? "text-orange-500" : documentText.length > 8000 ? "text-red-500" : "text-green-600"}>
+                    {documentText.length < 100 ? "Muito curto para análise detalhada" : 
+                     documentText.length > 8000 ? "Texto muito longo (máx. 8000)" : 
+                     "Tamanho ideal"}
+                  </span>
+                </div>
               </div>
             </div>
+
+            {/* Quick Framework Suggestions */}
+            {!selectedFramework && documentText.length > 100 && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <h4 className="text-sm font-medium text-blue-900 mb-2">Frameworks Recomendados:</h4>
+                <div className="flex flex-wrap gap-2">
+                  {['lean-canvas', 'swot-analysis', 'opportunity-assessment'].map((framework) => {
+                    const frameworkInfo = FRAMEWORKS.find(f => f.id === framework);
+                    return frameworkInfo ? (
+                      <Button
+                        key={framework}
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleFrameworkChange(framework)}
+                        className="text-xs bg-white hover:bg-blue-100 border-blue-300"
+                      >
+                        {frameworkInfo.name}
+                      </Button>
+                    ) : null;
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* Action Buttons */}
             <div className="flex space-x-3">
               <Button
                 onClick={handleAnalyze}
-                disabled={analyzeMutation.isPending || !selectedFramework || !documentText.trim()}
+                disabled={analyzeMutation.isPending || !selectedFramework || !documentText.trim() || documentText.length > 8000}
                 className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90"
               >
                 {analyzeMutation.isPending ? (
@@ -217,10 +265,21 @@ export default function FrameworkAnalyzer({ onAnalysisComplete }: FrameworkAnaly
 
             {/* Loading State */}
             {analyzeMutation.isPending && (
-              <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-                <div className="flex items-center">
-                  <Loader2 className="mr-3 h-4 w-4 animate-spin text-primary" />
-                  <span className="text-sm text-blue-800">Analisando documento com IA...</span>
+              <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center">
+                    <Loader2 className="mr-3 h-4 w-4 animate-spin text-primary" />
+                    <div>
+                      <span className="text-sm font-medium text-blue-900">Analisando documento com IA Mistral...</span>
+                      <p className="text-xs text-blue-700 mt-1">Aplicando framework {selectedFrameworkInfo?.name}</p>
+                    </div>
+                  </div>
+                  <div className="text-xs text-blue-600 bg-blue-100 px-2 py-1 rounded">
+                    ~30s
+                  </div>
+                </div>
+                <div className="mt-3 bg-blue-200 rounded-full h-1">
+                  <div className="bg-blue-500 h-1 rounded-full animate-pulse" style={{width: '60%'}}></div>
                 </div>
               </div>
             )}

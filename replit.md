@@ -46,8 +46,16 @@ Preferred communication style: Simple, everyday language.
 - Structured error handling with Zod validation
 
 ### UI Components
-- **FrameworkAnalyzer** - Main form for framework selection and document input
-- **AnalysisResults** - Display component for analysis output with copy/export functionality
+- **FrameworkAnalyzer** - Enhanced form with:
+  - Smart framework suggestions based on content
+  - Character count validation (100-8000 characters)
+  - Framework favorites system with localStorage
+  - Visual loading states with progress indicators
+- **AnalysisResults** - Professional display with:
+  - Structured PDF export with colored sections
+  - Document name extraction for PDFs
+  - Copy/export functionality (MD, PDF)
+  - Date stamps and analysis metadata
 - Comprehensive shadcn/ui component library for consistent design
 
 ### Framework Types (`client/src/types/analysis.ts`)

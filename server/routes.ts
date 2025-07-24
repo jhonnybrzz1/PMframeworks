@@ -14,7 +14,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { framework, inputText } = analyzeRequestSchema.parse(req.body);
 
       // Call Mistral AI API
-      const mistralApiKey = process.env.MISTRAL_API_KEY || "A0d94lrcBf49pfjx4t1yG8siY46Xwqmq";
+      const mistralApiKey = process.env.MISTRAL_API_KEY || "xRyHvT4O2iVBstNt1H0yPgkm2tB7jiPa";
       
       const systemPrompt = `
 🧠 MOTOR DE PRODUTO - ANÁLISE ESTRATÉGICA E PROVOCATIVA

@@ -109,7 +109,7 @@ ESTRUTURA OBRIGATÓRIA:
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "ft:mistral-small-latest:450092c5:20250910:23569512",
+          model: "ft:mistral-large-latest:87817515:20250910:33f45a53",
           messages: [
             { role: "system", content: systemPrompt },
             { role: "user", content: userPrompt }

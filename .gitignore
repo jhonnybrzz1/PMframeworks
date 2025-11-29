@@ -4,3 +4,4 @@ dist
 server/public
 vite.config.ts.*
 *.tar.gz
+test_pdf_changes.js

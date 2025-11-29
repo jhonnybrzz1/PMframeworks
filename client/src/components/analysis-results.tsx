@@ -120,7 +120,7 @@ Gerado por Frameworks - Análise Crítica para PMs
       const contentWidth = pageWidth - 2 * margin;
       let yPosition = margin;
 
-      // Helper function to add text with word wrapping
+      // Helper function to add text with word wrapping and better page breaks
       const addWrappedText = (text: string, fontSize: number = 10, isBold: boolean = false) => {
         pdf.setFontSize(fontSize);
         if (isBold) {
@@ -128,37 +128,41 @@ Gerado por Frameworks - Análise Crítica para PMs
         } else {
           pdf.setFont('helvetica', 'normal');
         }
-        
+
         const lines = pdf.splitTextToSize(text, contentWidth);
         const lineHeight = fontSize * 0.5;
-        
+
         lines.forEach((line: string) => {
-          if (yPosition + lineHeight > pageHeight - margin) {
+          // Check if we're near the bottom of the page
+          if (yPosition + lineHeight >= pageHeight - margin) {
             pdf.addPage();
             yPosition = margin;
+            // Add header to new page
+            addHeader();
           }
           pdf.text(line, margin, yPosition);
           yPosition += lineHeight;
         });
-        
+
         return yPosition;
       };
 
-      // Helper function to add a section with colored header
+      // Helper function to add a section with colored header and improved layout
       const addSection = (title: string, content: string | string[], color: [number, number, number] = [0, 0, 0]) => {
-        // Add some space before section
-        yPosition += 8;
-        
-        // Check if we need a new page
+        // Add some space before section, ensure we have enough room
         if (yPosition > pageHeight - 50) {
           pdf.addPage();
           yPosition = margin;
+          // Add header to new page
+          addHeader();
+        } else {
+          yPosition += 8;
         }
 
         // Section header with colored background
         pdf.setFillColor(color[0], color[1], color[2]);
         pdf.rect(margin, yPosition - 6, contentWidth, 12, 'F');
-        
+
         pdf.setTextColor(255, 255, 255);
         pdf.setFontSize(12);
         pdf.setFont('helvetica', 'bold');
@@ -167,47 +171,86 @@ Gerado por Frameworks - Análise Crítica para PMs
 
         // Reset text color
         pdf.setTextColor(0, 0, 0);
-        
+
         // Section content
         if (Array.isArray(content)) {
           content.forEach((item, index) => {
             const cleanItem = item.replace(/^[•\-\*✅❌]\s*/, '').trim();
+
+            // Check if we need a new page before adding content
+            if (yPosition + 15 > pageHeight - margin) {
+              pdf.addPage();
+              yPosition = margin;
+              // Add header to new page
+              addHeader();
+
+              // Re-add section header if we're on a new page
+              pdf.setFillColor(color[0], color[1], color[2]);
+              pdf.rect(margin, yPosition - 6, contentWidth, 12, 'F');
+              pdf.setTextColor(255, 255, 255);
+              pdf.setFontSize(12);
+              pdf.setFont('helvetica', 'bold');
+              pdf.text(title, margin + 5, yPosition);
+              yPosition += 10;
+              pdf.setTextColor(0, 0, 0);
+            }
+
             yPosition = addWrappedText(`• ${cleanItem}`, 10);
             yPosition += 2;
           });
         } else {
+          // Check if we need a new page before adding content
+          if (yPosition + 20 > pageHeight - margin) {
+            pdf.addPage();
+            yPosition = margin;
+            // Add header to new page
+            addHeader();
+
+            // Re-add section header if we're on a new page
+            pdf.setFillColor(color[0], color[1], color[2]);
+            pdf.rect(margin, yPosition - 6, contentWidth, 12, 'F');
+            pdf.setTextColor(255, 255, 255);
+            pdf.setFontSize(12);
+            pdf.setFont('helvetica', 'bold');
+            pdf.text(title, margin + 5, yPosition);
+            yPosition += 10;
+            pdf.setTextColor(0, 0, 0);
+          }
+
           yPosition = addWrappedText(content, 10);
         }
-        
-        yPosition += 5;
+
+        yPosition += 8; // Increased space after sections
       };
 
-      // PDF Header
-      pdf.setFillColor(33, 150, 243);
-      pdf.rect(0, 0, pageWidth, 40, 'F');
-      
-      pdf.setTextColor(255, 255, 255);
-      pdf.setFontSize(20);
-      pdf.setFont('helvetica', 'bold');
-      pdf.text('Análise Crítica - Frameworks PM', margin, 25);
-      
-      pdf.setFontSize(12);
-      pdf.setFont('helvetica', 'normal');
-      pdf.text(`Framework: ${analysis.framework}`, margin, 35);
-      
-      // Add document name if available
-      const docName = inputText?.substring(0, 60).replace(/[^\w\s]/g, '').trim() || 'Documento';
-      pdf.setFontSize(10);
-      pdf.text(`Documento: ${docName}...`, margin, 42);
-      
-      // Date
-      const now = new Date();
-      pdf.text(`Data: ${now.toLocaleDateString('pt-BR')}`, pageWidth - margin - 50, 35);
-      
-      yPosition = 50;
+      // Function to add PDF header
+      const addHeader = () => {
+        // PDF Header
+        pdf.setFillColor(33, 150, 243);
+        pdf.rect(0, 0, pageWidth, 30, 'F');
+
+        pdf.setTextColor(255, 255, 255);
+        pdf.setFontSize(16);
+        pdf.setFont('helvetica', 'bold');
+        pdf.text('Análise Crítica - Frameworks PM', margin, 15);
+
+        pdf.setFontSize(10);
+        pdf.setFont('helvetica', 'normal');
+        pdf.text(`Framework: ${analysis.framework}`, margin, 22);
+
+        // Add document name if available
+        const docName = inputText?.substring(0, 60).replace(/[^\w\s]/g, '').trim() || 'Documento';
+        pdf.text(`Documento: ${docName}...`, margin, 27);
+      };
+
+      // Add header to first page
+      addHeader();
+
+      // Reset text color for content
+      yPosition = 35;
       pdf.setTextColor(0, 0, 0);
 
-      // Add sections with different colors
+      // Add sections with different colors - improved spacing and page break control
       addSection('1. Resumo do Conteúdo Recebido', analysis.summary, [33, 150, 243]); // Blue
       addSection('2. Pontos Fortes segundo o framework', analysis.strengths, [76, 175, 80]); // Green
       addSection('3. Lacunas ou Pontos Fracos', analysis.gaps, [244, 67, 54]); // Red
@@ -215,7 +258,7 @@ Gerado por Frameworks - Análise Crítica para PMs
       addSection('5. Framework Utilizado', analysis.framework, [156, 39, 176]); // Purple
 
       // Footer
-      const totalPages = pdf.internal.pages.length - 1;
+      const totalPages = pdf.internal.pages.length;
       for (let i = 1; i <= totalPages; i++) {
         pdf.setPage(i);
         pdf.setFontSize(8);

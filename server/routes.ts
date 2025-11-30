@@ -3,184 +3,91 @@ import type { Request, Response } from "express";
 import { createRequire } from 'module';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import fs from 'fs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const require = createRequire(__dirname);
 
 export async function registerRoutes(app: express.Application) {
-  // Rota para gerar PDF com Playwright
+  // Rota para gerar PDF com Playwright (REFATORADA)
   app.post('/api/generate-pdf', async (req: Request, res: Response) => {
     try {
-      // Importar Playwright dinamicamente
       const { chromium } = await import('playwright');
-      
       const { analysis, inputText } = req.body;
-      
+
       if (!analysis) {
         return res.status(400).json({ error: 'Dados de análise são obrigatórios' });
       }
 
-      // Gerar HTML para o PDF
+      // --- 1. Ler o Template HTML ---
+      const templatePath = path.join(__dirname, 'reports', 'templates', 'analise.html');
+      let htmlTemplate = fs.readFileSync(templatePath, 'utf-8');
+
+      // --- 2. Popular o Template com Dados Dinâmicos ---
       const docName = inputText?.substring(0, 60).replace(/[^\w\s]/g, '').trim() || 'Documento';
       const now = new Date().toLocaleDateString('pt-BR');
       
-      const htmlContent = `
-        <!DOCTYPE html>
-        <html lang="pt-BR">
-        <head>
-          <meta charset="UTF-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>Análise Crítica - Frameworks PM</title>
-          <style>
-            body {
-              font-family: Arial, sans-serif;
-              margin: 0;
-              padding: 20px;
-              color: #333;
-              line-height: 1.6;
-            }
-            .header {
-              background-color: #2196F3;
-              color: white;
-              padding: 20px;
-              margin-bottom: 20px;
-              height: auto;
-              text-align: center;
-            }
-            .section {
-              margin-bottom: 20px;
-              break-inside: avoid;
-            }
-            .section-header {
-              padding: 10px;
-              margin-bottom: 10px;
-              color: white;
-            }
-            .blue-header { background-color: #2196F3; }
-            .green-header { background-color: #4CAF50; }
-            .red-header { background-color: #F44336; }
-            .orange-header { background-color: #FF9800; }
-            .purple-header { background-color: #9C27B0; }
-            .section-content {
-              padding: 15px;
-              border: 1px solid #ddd;
-              background-color: #f9f9f9;
-            }
-            .footer {
-              margin-top: 30px;
-              padding-top: 10px;
-              border-top: 1px solid #ddd;
-              text-align: center;
-              font-size: 0.8em;
-              color: #666;
-            }
-            ul {
-              padding-left: 20px;
-            }
-            li {
-              margin-bottom: 8px;
-            }
-            h1, h2 {
-              margin-top: 0;
-            }
-          </style>
-        </head>
-        <body>
-          <div class="header">
-            <h1>Análise Crítica - Frameworks PM</h1>
-            <p>Framework: ${analysis.framework}</p>
-            <p>Documento: ${docName}...</p>
-          </div>
+      const strengthsHtml = analysis.strengths?.map(s => `<li>${s.replace(/^[•\-\*✅❌]\s*/, '').trim()}</li>`).join('') || '';
+      const gapsHtml = analysis.gaps?.map(g => `<li>${g.replace(/^[•\-\*✅❌]\s*/, '').trim()}</li>`).join('') || '';
 
-          <div class="section">
-            <div class="section-header blue-header">
-              <h2>1. Resumo do Conteúdo Recebido</h2>
-            </div>
-            <div class="section-content">
-              <p>${analysis.summary}</p>
-            </div>
-          </div>
+      // Simulação de um gráfico estático
+      // Em um cenário real, este seria o path para um gráfico gerado dinamicamente (ex: /tmp/chart-123.png)
+      const chartImagePath = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII='; // 1x1 pixel transparente
 
-          <div class="section">
-            <div class="section-header green-header">
-              <h2>2. Pontos Fortes segundo o framework</h2>
-            </div>
-            <div class="section-content">
-              <ul>
-                ${analysis.strengths.map((strength) => {
-                  const cleanStrength = strength.replace(/^[•\-\*✅❌]\s*/, '').trim();
-                  return '<li>• ' + cleanStrength + '</li>';
-                }).join('')}
-              </ul>
-            </div>
-          </div>
+      const replacements = {
+        '{{framework}}': analysis.framework || 'N/A',
+        '{{docName}}': docName,
+        '{{currentDate}}': now,
+        '{{summary}}': analysis.summary || 'N/A',
+        '{{strengths}}': strengthsHtml,
+        '{{gaps}}': gapsHtml,
+        '{{recommendations}}': analysis.recommendations || 'N/A',
+        '{{chartImagePath}}': chartImagePath
+      };
 
-          <div class="section">
-            <div class="section-header red-header">
-              <h2>3. Lacunas ou Pontos Fracos</h2>
-            </div>
-            <div class="section-content">
-              <ul>
-                ${analysis.gaps.map((gap) => {
-                  const cleanGap = gap.replace(/^[•\-\*✅❌]\s*/, '').trim();
-                  return '<li>• ' + cleanGap + '</li>';
-                }).join('')}
-              </ul>
-            </div>
-          </div>
-
-          <div class="section">
-            <div class="section-header orange-header">
-              <h2>4. Recomendações Práticas</h2>
-            </div>
-            <div class="section-content">
-              <p>${analysis.recommendations}</p>
-            </div>
-          </div>
-
-          <div class="section">
-            <div class="section-header purple-header">
-              <h2>5. Framework Utilizado</h2>
-            </div>
-            <div class="section-content">
-              <p>${analysis.framework}</p>
-            </div>
-          </div>
-
-          <div class="footer">
-            <p>Gerado por Frameworks - Análise Crítica para PMs</p>
-            <p>Data: ${now}</p>
-          </div>
-        </body>
-        </html>
-      `;
-
-      // Iniciar o navegador
+      for (const [key, value] of Object.entries(replacements)) {
+        htmlTemplate = htmlTemplate.replace(new RegExp(key, 'g'), value);
+      }
+      
+      // --- 3. Gerar o PDF com Playwright ---
       const browser = await chromium.launch();
       const page = await browser.newPage();
       
-      // Definir o conteúdo HTML
-      await page.setContent(htmlContent, { waitUntil: 'networkidle' });
+      // Usar data URI para carregar o HTML dinâmico sem precisar de um arquivo temporário
+      await page.goto(`data:text/html;charset=UTF-8,${encodeURIComponent(htmlTemplate)}`, { waitUntil: 'networkidle' });
+
+      // Template para o cabeçalho e rodapé
+      const headerTemplate = `
+        <div style="font-family: Arial, sans-serif; font-size: 10px; color: #555; width: 100%; text-align: center; padding: 0 24mm;">
+          Análise Crítica de Frameworks PM
+        </div>`;
       
-      // Gerar o PDF
+      const footerTemplate = `
+        <div style="font-family: Arial, sans-serif; font-size: 10px; color: #555; width: 100%; padding: 0 24mm; display: flex; justify-content: space-between;">
+          <span>Data: <span class="date"></span></span>
+          <span>Página <span class="pageNumber"></span> de <span class="totalPages"></span></span>
+        </div>`;
+
       const pdfBuffer = await page.pdf({
         format: 'A4',
         printBackground: true,
+        displayHeaderFooter: true,
+        headerTemplate,
+        footerTemplate,
         margin: {
-          top: '20px',
-          right: '20px',
-          bottom: '20px',
-          left: '20px'
+          top: '40px',  // Espaço para o cabeçalho
+          bottom: '40px', // Espaço para o rodapé
+          left: '24mm',
+          right: '24mm'
         }
       });
       
-      // Fechar o navegador
       await browser.close();
 
-      // Enviar o PDF como resposta
+      // --- 4. Enviar Resposta ---
       res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', 'attachment; filename="analise-frameworks-' + Date.now() + '.pdf"');
+      res.setHeader('Content-Disposition', `attachment; filename="analise-frameworks-${Date.now()}.pdf"`);
       res.send(pdfBuffer);
       
     } catch (error) {

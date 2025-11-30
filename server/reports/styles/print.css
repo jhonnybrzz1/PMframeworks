@@ -1,0 +1,53 @@
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Regras específicas para impressão */
+@media print {
+  /* Define as margens da página para impressão */
+  @page {
+    margin: 24mm;
+  }
+
+  body {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    font-family: 'Inter', sans-serif; /* Usando uma fonte profissional */
+  }
+
+  /* Garante que a quebra de página seja respeitada */
+  .page-break {
+    page-break-before: always;
+  }
+
+  /* Evita quebras de página indesejadas dentro de seções */
+  .section {
+    break-inside: avoid;
+  }
+  
+  /* Oculta elementos que não devem aparecer no PDF */
+  .no-print {
+    display: none;
+  }
+
+  /* Estilos de tipografia consistentes */
+  h1, .h1 {
+    font-size: 26px;
+    font-weight: 700;
+  }
+  
+  h2, .h2 {
+    font-size: 20px;
+    font-weight: 600;
+  }
+
+  h3, .h3 {
+    font-size: 16px;
+    font-weight: 600;
+  }
+
+  p, li, span, .p {
+    font-size: 12px;
+  }
+}

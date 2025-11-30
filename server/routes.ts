@@ -1,237 +1,194 @@
-import type { Express } from "express";
-import { createServer, type Server } from "http";
-import multer from "multer";
-import { storage } from "./storage";
-import { analyzeRequestSchema, type AnalyzeResponse } from "@shared/schema";
-import { ZodError } from "zod";
+import express from "express";
+import type { Request, Response } from "express";
+import { createRequire } from 'module';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-const upload = multer({ storage: multer.memoryStorage() });
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const require = createRequire(__dirname);
 
-export async function registerRoutes(app: Express): Promise<Server> {
-  // Analyze document endpoint
-  app.post("/api/analyze", async (req, res) => {
+export async function registerRoutes(app: express.Application) {
+  // Rota para gerar PDF com Playwright
+  app.post('/api/generate-pdf', async (req: Request, res: Response) => {
     try {
-      const { framework, inputText } = analyzeRequestSchema.parse(req.body);
-
-      // Call Mistral AI API
-      const mistralApiKey = process.env.MISTRAL_API_KEY || "xRyHvT4O2iVBstNt1H0yPgkm2tB7jiPa";
+      // Importar Playwright dinamicamente
+      const { chromium } = await import('playwright');
       
-      const systemPrompt = `
-🧠 MOTOR DE PRODUTO - ANÁLISE ESTRATÉGICA E PROVOCATIVA
+      const { analysis, inputText } = req.body;
+      
+      if (!analysis) {
+        return res.status(400).json({ error: 'Dados de análise são obrigatórios' });
+      }
 
-Você é um motor de análise de produto com foco total em conteúdo. Seu papel é interpretar qualquer entrada — pitch, PRD, user story, transcrição ou descrição — e extrair o máximo de valor estratégico possível.
+      // Gerar HTML para o PDF
+      const docName = inputText?.substring(0, 60).replace(/[^\w\s]/g, '').trim() || 'Documento';
+      const now = new Date().toLocaleDateString('pt-BR');
+      
+      const htmlContent = `
+        <!DOCTYPE html>
+        <html lang="pt-BR">
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Análise Crítica - Frameworks PM</title>
+          <style>
+            body {
+              font-family: Arial, sans-serif;
+              margin: 0;
+              padding: 20px;
+              color: #333;
+              line-height: 1.6;
+            }
+            .header {
+              background-color: #2196F3;
+              color: white;
+              padding: 20px;
+              margin-bottom: 20px;
+              height: auto;
+              text-align: center;
+            }
+            .section {
+              margin-bottom: 20px;
+              break-inside: avoid;
+            }
+            .section-header {
+              padding: 10px;
+              margin-bottom: 10px;
+              color: white;
+            }
+            .blue-header { background-color: #2196F3; }
+            .green-header { background-color: #4CAF50; }
+            .red-header { background-color: #F44336; }
+            .orange-header { background-color: #FF9800; }
+            .purple-header { background-color: #9C27B0; }
+            .section-content {
+              padding: 15px;
+              border: 1px solid #ddd;
+              background-color: #f9f9f9;
+            }
+            .footer {
+              margin-top: 30px;
+              padding-top: 10px;
+              border-top: 1px solid #ddd;
+              text-align: center;
+              font-size: 0.8em;
+              color: #666;
+            }
+            ul {
+              padding-left: 20px;
+            }
+            li {
+              margin-bottom: 8px;
+            }
+            h1, h2 {
+              margin-top: 0;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>Análise Crítica - Frameworks PM</h1>
+            <p>Framework: ${analysis.framework}</p>
+            <p>Documento: ${docName}...</p>
+          </div>
 
-**IGNORE O FORMATO. CONCENTRE-SE NESTAS PERGUNTAS:**
-• Qual é o problema real sendo abordado?
-• Qual é o impacto dessa demanda no negócio?
-• Que hipóteses ou objetivos estão presentes, mesmo que implícitos?
-• Quais pontos críticos, riscos ou oportunidades precisam ser levantados?
+          <div class="section">
+            <div class="section-header blue-header">
+              <h2>1. Resumo do Conteúdo Recebido</h2>
+            </div>
+            <div class="section-content">
+              <p>${analysis.summary}</p>
+            </div>
+          </div>
 
-**FRAMEWORKS DISPONÍVEIS:**
-- Business Model Canvas, Lean Canvas, DHM Strategy
-- Matriz CSD, Continuous Discovery, Opportunity Solution Tree
-- SWOT Analysis, Competitive Analysis, Market Sizing
-- User Story Mapping, RICE Score, RAPID Framework
-- North Star Metric, Metrics Tree, KPIs
+          <div class="section">
+            <div class="section-header green-header">
+              <h2>2. Pontos Fortes segundo o framework</h2>
+            </div>
+            <div class="section-content">
+              <ul>
+                ${analysis.strengths.map((strength) => {
+                  const cleanStrength = strength.replace(/^[•\-\*✅❌]\s*/, '').trim();
+                  return '<li>• ' + cleanStrength + '</li>';
+                }).join('')}
+              </ul>
+            </div>
+          </div>
 
-**PERSONALIDADE E ESTILO:**
-• Provocador, analítico e direto
-• Intolerante a superficialidades e lugares-comuns
-• Prefere decisões baseadas em impacto real, dados e lógica
-• Levanta questões incômodas quando necessário
-• Ajuda a clarear o pensamento, não a embelezar
+          <div class="section">
+            <div class="section-header red-header">
+              <h2>3. Lacunas ou Pontos Fracos</h2>
+            </div>
+            <div class="section-content">
+              <ul>
+                ${analysis.gaps.map((gap) => {
+                  const cleanGap = gap.replace(/^[•\-\*✅❌]\s*/, '').trim();
+                  return '<li>• ' + cleanGap + '</li>';
+                }).join('')}
+              </ul>
+            </div>
+          </div>
 
-**ESTRUTURA DE RESPOSTA OBRIGATÓRIA:**
+          <div class="section">
+            <div class="section-header orange-header">
+              <h2>4. Recomendações Práticas</h2>
+            </div>
+            <div class="section-content">
+              <p>${analysis.recommendations}</p>
+            </div>
+          </div>
 
-**1. RESUMO ESTRATÉGICO**
-Máximo 3 frases sobre o problema/oportunidade central identificado.
+          <div class="section">
+            <div class="section-header purple-header">
+              <h2>5. Framework Utilizado</h2>
+            </div>
+            <div class="section-content">
+              <p>${analysis.framework}</p>
+            </div>
+          </div>
 
-**2. PONTOS FORTES (Framework ${framework})**
-• Liste elementos que estão bem alinhados ao framework
-• Seja específico sobre quais aspectos funcionam
-• Foque no valor estratégico, não na apresentação
+          <div class="footer">
+            <p>Gerado por Frameworks - Análise Crítica para PMs</p>
+            <p>Data: ${now}</p>
+          </div>
+        </body>
+        </html>
+      `;
 
-**3. LACUNAS CRÍTICAS**
-• Liste o que falta segundo o framework
-• Identifique riscos ou pontos cegos
-• Seja direto sobre problemas encontrados
-
-**4. RECOMENDAÇÕES DE AÇÃO**
-• Ações específicas e práticas para melhorar
-• Perguntas provocativas para clarear pontos vagos
-• Soluções baseadas no framework aplicado
-
-**5. FRAMEWORK APLICADO**
-Nome do framework e como foi utilizado na análise.
-
-⚠️ REGRAS CRÍTICAS:
-• Nunca aplique framework à força - use apenas se justificar
-• Nunca invente informações - trabalhe só com o input
-• Cada seção deve ter conteúdo único - ZERO repetição
-• Provoque com perguntas quando conteúdo estiver vago
-• Foque no PROBLEMA e IMPACTO, não no formato do texto
-`;
-
-      const userPrompt = `
-INPUT PARA ANÁLISE ESTRATÉGICA:
-${inputText}
-
-FRAMEWORK: ${framework}
-
-MISSÃO: Extraia o máximo valor estratégico possível deste conteúdo. Ignore formato, estrutura ou apresentação.
-
-FOQUE NESTAS QUESTÕES CENTRAIS:
-- Qual PROBLEMA real está sendo abordado?
-- Qual IMPACTO no negócio está em jogo?
-- Que HIPÓTESES ou OBJETIVOS estão implícitos?
-- Quais RISCOS ou OPORTUNIDADES críticas existem?
-
-SEJA PROVOCATIVO E DIRETO:
-- Se algo estiver vago, levante perguntas incômodas
-- Se faltar informação crítica, aponte sem rodeios  
-- Se há superficialidade, provoque profundidade
-- Foque em DECISÕES e IMPACTO, não em documentação
-
-ESTRUTURA OBRIGATÓRIA:
-1. **RESUMO ESTRATÉGICO**: O problema/oportunidade central (máx. 3 frases)
-2. **PONTOS FORTES**: O que funciona bem segundo ${framework}
-3. **LACUNAS CRÍTICAS**: O que falta ou está mal pensado
-4. **RECOMENDAÇÕES DE AÇÃO**: Ações específicas e perguntas provocativas
-5. **FRAMEWORK APLICADO**: Como ${framework} foi usado
-
-🎯 SUA META: Provocar clareza, levantar riscos, sugerir caminhos com base no valor real do produto.
-`;
-
-      const mistralResponse = await fetch("https://api.mistral.ai/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${mistralApiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "ft:mistral-large-latest:87817515:20250910:33f45a53",
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: userPrompt }
-          ],
-          temperature: 0.7,
-          max_tokens: 2000,
-        }),
+      // Iniciar o navegador
+      const browser = await chromium.launch();
+      const page = await browser.newPage();
+      
+      // Definir o conteúdo HTML
+      await page.setContent(htmlContent, { waitUntil: 'networkidle' });
+      
+      // Gerar o PDF
+      const pdfBuffer = await page.pdf({
+        format: 'A4',
+        printBackground: true,
+        margin: {
+          top: '20px',
+          right: '20px',
+          bottom: '20px',
+          left: '20px'
+        }
       });
-
-      if (!mistralResponse.ok) {
-        throw new Error(`Mistral API error: ${mistralResponse.statusText}`);
-      }
-
-      const mistralData = await mistralResponse.json();
-      const analysisText = mistralData.choices[0].message.content;
-
-      // Parse the structured response - improved parsing logic
-      console.log("Raw analysis from Mistral:", analysisText);
       
-      // Extract sections using more flexible patterns
-      const summaryMatch = analysisText.match(/(?:\*\*)?1\.?\s*Resumo[\s\S]*?\*\*([\s\S]*?)(?=\*\*2\.|$)/i);
-      const strengthsMatch = analysisText.match(/(?:\*\*)?2\.?\s*Pontos Fortes[\s\S]*?\*\*([\s\S]*?)(?=\*\*3\.|$)/i);
-      const gapsMatch = analysisText.match(/(?:\*\*)?3\.?\s*Lacunas[\s\S]*?\*\*([\s\S]*?)(?=\*\*4\.|$)/i);
-      const recommendationsMatch = analysisText.match(/(?:\*\*)?4\.?\s*Recomendações[\s\S]*?\*\*([\s\S]*?)(?=\*\*5\.|$)/i);
-      const frameworkMatch = analysisText.match(/(?:\*\*)?5\.?\s*Framework[\s\S]*?\*\*([\s\S]*?)$/i);
+      // Fechar o navegador
+      await browser.close();
+
+      // Enviar o PDF como resposta
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', 'attachment; filename="analise-frameworks-' + Date.now() + '.pdf"');
+      res.send(pdfBuffer);
       
-      // If structured parsing fails, try a simpler approach
-      let summary = summaryMatch?.[1]?.trim() || "";
-      let strengths = strengthsMatch?.[1]?.trim().split('\n').filter((s: string) => s.trim()) || [];
-      let gaps = gapsMatch?.[1]?.trim().split('\n').filter((s: string) => s.trim()) || [];
-      let recommendations = recommendationsMatch?.[1]?.trim() || "";
-      let frameworkUsed = frameworkMatch?.[1]?.trim() || framework;
-      
-      // Fallback: if no structured content found, use the full text
-      if (!summary && !strengths.length && !gaps.length && !recommendations) {
-        summary = analysisText.substring(0, 500) + "...";
-        strengths = ["Análise completa disponível no texto principal"];
-        gaps = ["Consulte a análise completa para detalhes"];
-        recommendations = analysisText.length > 500 ? analysisText.substring(500, 1000) + "..." : analysisText;
-        frameworkUsed = `Análise usando ${framework}`;
-      }
-      
-      // Calculate quality score based on content completeness
-      const qualityScore = Math.min(100, Math.round(
-        (summary.length > 50 ? 20 : 10) + 
-        (strengths.length * 15) + 
-        (gaps.length * 15) + 
-        (recommendations.length > 100 ? 25 : 10) + 
-        (frameworkUsed.length > 10 ? 15 : 5)
-      ));
-
-      const analysis = {
-        summary,
-        strengths,
-        gaps,
-        recommendations,
-        framework: frameworkUsed,
-        qualityScore,
-        generatedAt: new Date().toISOString(),
-        fullText: analysisText // Keep full text as backup
-      };
-
-      // Save analysis to storage
-      await storage.createAnalysis({
-        framework,
-        inputText,
-        analysis,
-      });
-
-      const response: AnalyzeResponse = {
-        success: true,
-        analysis,
-      };
-
-      res.json(response);
     } catch (error) {
-      console.error("Analysis error:", error);
-      
-      if (error instanceof ZodError) {
-        const response: AnalyzeResponse = {
-          success: false,
-          error: "Dados inválidos: " + error.errors.map(e => e.message).join(", "),
-        };
-        return res.status(400).json(response);
-      }
-
-      const response: AnalyzeResponse = {
-        success: false,
-        error: "Erro interno do servidor. Tente novamente.",
-      };
-      res.status(500).json(response);
+      console.error('Erro ao gerar PDF:', error);
+      res.status(500).json({ error: 'Erro ao gerar PDF', details: (error as Error).message });
     }
   });
-
-  // Get recent analyses
-  app.get("/api/analyses/recent", async (req, res) => {
-    try {
-      const recentAnalyses = await storage.getRecentAnalyses(5);
-      res.json(recentAnalyses);
-    } catch (error) {
-      console.error("Get recent analyses error:", error);
-      res.status(500).json({ error: "Erro ao buscar análises recentes" });
-    }
-  });
-
-  // File upload endpoint
-  app.post("/api/upload", upload.single("file"), async (req, res) => {
-    try {
-      if (!req.file) {
-        return res.status(400).json({ error: "Nenhum arquivo enviado" });
-      }
-
-      // Convert file content to text (basic implementation)
-      const text = req.file.buffer.toString('utf-8');
-      
-      res.json({ text });
-    } catch (error) {
-      console.error("File upload error:", error);
-      res.status(500).json({ error: "Erro ao processar arquivo" });
-    }
-  });
-
-  const httpServer = createServer(app);
-  return httpServer;
+  
+  const server = await import("node:http").then(m => m.createServer(app));
+  return server;
 }

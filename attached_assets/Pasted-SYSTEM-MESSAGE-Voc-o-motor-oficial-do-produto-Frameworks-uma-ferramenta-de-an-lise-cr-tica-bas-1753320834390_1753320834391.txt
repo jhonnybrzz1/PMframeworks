@@ -137,7 +137,7 @@ def analyze(request: AnalysisRequest):
         "https://api.mistral.ai/v1/chat/completions",
         headers={"Authorization": f"Bearer {API_KEY}"},
         json={
-            "model": "mistral-large-latest",
+            "model": "mistral-large-2512",
             "messages": [{"role": "user", "content": prompt}]
         }
     )

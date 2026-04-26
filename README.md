@@ -30,9 +30,10 @@ O PM Frameworks Analyzer é uma aplicação full-stack que permite a análise cr
 - Playwright (para geração de PDF)
 
 ### Banco de Dados
-- PostgreSQL (via Neon Serverless)
-- Drizzle ORM
-- Zod (validação de esquemas)
+- Atualmente: Memória (MemStorage) — usado por padrão em desenvolvimento; dados são voláteis e reiniciam ao reiniciar o servidor.
+- Recomendado: PostgreSQL (via Neon Serverless) com Drizzle ORM para persistência em produção.
+- Para habilitar PostgreSQL: defina DATABASE_URL no arquivo .env e execute `npm run db:push` para aplicar migrations.
+- Zod (validação de esquemas) continua sendo utilizado para validação de entrada.
 
 ### Outras Ferramentas
 - Vite (empacotamento e desenvolvimento)

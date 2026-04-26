@@ -76,14 +76,15 @@ export default function FrameworkAnalyzer({ onAnalysisComplete }: FrameworkAnaly
   };
 
   const toggleFavorite = (frameworkId: string) => {
-    const newFavorites = favoriteFrameworks.includes(frameworkId)
-      ? favoriteFrameworks.filter(id => id !== frameworkId)
-      : [...favoriteFrameworks, frameworkId];
-    
+    const isNowFavorite = !favoriteFrameworks.includes(frameworkId);
+    const newFavorites = isNowFavorite
+      ? [...favoriteFrameworks, frameworkId]
+      : favoriteFrameworks.filter(id => id !== frameworkId);
+
     setFavoriteFrameworks(newFavorites);
     localStorage.setItem('favoriteFrameworks', JSON.stringify(newFavorites));
     toast({
-      title: favoriteFrameworks.includes(frameworkId) ? "Removido dos favoritos" : "Adicionado aos favoritos",
+      title: isNowFavorite ? "Adicionado aos favoritos" : "Removido dos favoritos",
       description: "Framework atualizado em seus favoritos.",
     });
   };
@@ -137,6 +138,29 @@ export default function FrameworkAnalyzer({ onAnalysisComplete }: FrameworkAnaly
 
   return (
     <div className="space-y-6">
+      {/* Favorites Card */}
+      {favoriteFrameworks.length > 0 && (
+        <Card>
+          <CardContent className="p-4">
+            <h3 className="text-sm font-medium mb-2">Favoritos</h3>
+            <div className="flex flex-wrap gap-2">
+              {favoriteFrameworks.map(id => {
+                const f = FRAMEWORKS.find(fr => fr.id === id);
+                if (!f) return null;
+                return (
+                  <div key={id} className="flex items-center space-x-2 bg-white border px-3 py-1 rounded">
+                    <Button size="sm" variant="ghost" onClick={() => handleFrameworkChange(id)}>{f.name}</Button>
+                    <Button size="sm" variant="outline" onClick={() => toggleFavorite(id)}>
+                      <Star className="h-4 w-4 text-yellow-400" />
+                    </Button>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <Card>
         <CardContent className="p-6">
           <div className="mb-6">
@@ -291,9 +315,16 @@ export default function FrameworkAnalyzer({ onAnalysisComplete }: FrameworkAnaly
       {selectedFrameworkInfo && (
         <Card className="bg-gradient-to-br from-slate-50 to-slate-100 border-slate-200">
           <CardContent className="p-6">
-            <h3 className="font-semibold text-slate-900 mb-3 flex items-center">
-              <Info className="text-primary mr-2 h-4 w-4" />
-              Framework Selecionado
+            <h3 className="font-semibold text-slate-900 mb-3 flex items-center justify-between">
+              <div className="flex items-center">
+                <Info className="text-primary mr-2 h-4 w-4" />
+                Framework Selecionado
+              </div>
+              <div>
+                <Button size="sm" variant="ghost" onClick={() => selectedFramework && toggleFavorite(selectedFramework)}>
+                  {favoriteFrameworks.includes(selectedFramework) ? <Star className="h-4 w-4 text-yellow-400" /> : <Star className="h-4 w-4 text-slate-400" />}
+                </Button>
+              </div>
             </h3>
             <div className="space-y-2">
               <h4 className="font-medium text-slate-900">{selectedFrameworkInfo.name}</h4>

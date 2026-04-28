@@ -129,7 +129,4 @@ export async function registerRoutes(app: express.Application) {
 
   const server = await import("node:http").then(m => m.createServer(app));
   return server;
-  
-  const server = await import("node:http").then(m => m.createServer(app));
-  return server;
 }

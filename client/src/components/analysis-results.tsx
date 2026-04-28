@@ -253,7 +253,8 @@ Gerado por Frameworks - Análise Crítica para PMs
       addSection('5. Framework Utilizado', analysis.framework, [156, 39, 176]); // Purple
 
       // Footer
-      const totalPages = pdf.internal.getNumberOfPages();
+      // jspdf typings differ across versions; use any to access internal API safely
+      const totalPages = (pdf.internal as any).getNumberOfPages ? (pdf.internal as any).getNumberOfPages() : 1;
       for (let i = 1; i <= totalPages; i++) {
         pdf.setPage(i);
         pdf.setFontSize(8);

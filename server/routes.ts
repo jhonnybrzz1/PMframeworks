@@ -28,8 +28,8 @@ export async function registerRoutes(app: express.Application) {
       const docName = inputText?.substring(0, 60).replace(/[^\w\s]/g, '').trim() || 'Documento';
       const now = new Date().toLocaleDateString('pt-BR');
       
-      const strengthsHtml = analysis.strengths?.map(s => `<li>${s.replace(/^[•\-\*✅❌]\s*/, '').trim()}</li>`).join('') || '';
-      const gapsHtml = analysis.gaps?.map(g => `<li>${g.replace(/^[•\-\*✅❌]\s*/, '').trim()}</li>`).join('') || '';
+      const strengthsHtml = analysis.strengths?.map((s: string) => `<li>${s.replace(/^[•\-\*✅❌]\s*/, '').trim()}</li>`).join('') || '';
+      const gapsHtml = analysis.gaps?.map((g: string) => `<li>${g.replace(/^[•\-\*✅❌]\s*/, '').trim()}</li>`).join('') || '';
 
       // Simulação de um gráfico estático
       // Em um cenário real, este seria o path para um gráfico gerado dinamicamente (ex: /tmp/chart-123.png)
@@ -114,8 +114,11 @@ export async function registerRoutes(app: express.Application) {
       }
 
       // store analysis in DB/storage
+      if (!analysisResult.analysis) {
+        return res.status(500).json({ success: false, error: 'LLM não retornou análise válida.' });
+      }
       const { storage } = await import('./storage');
-      const saved = await storage.createAnalysis({ framework, inputText, analysis: analysisResult.analysis });
+      const saved = await storage.createAnalysis({ framework, inputText, analysis: analysisResult.analysis as any });
 
       res.json({ success: true, analysis: analysisResult.analysis, id: saved.id });
     } catch (err: any) {

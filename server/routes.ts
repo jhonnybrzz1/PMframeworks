@@ -95,6 +95,37 @@ export async function registerRoutes(app: express.Application) {
       res.status(500).json({ error: 'Erro ao gerar PDF', details: (error as Error).message });
     }
   });
+
+  // LLM analyze route
+  app.post('/api/analyze', async (req: Request, res: Response) => {
+    try {
+      const { analyzeRequestSchema } = await import('@shared/schema');
+      const parse = analyzeRequestSchema.safeParse(req.body);
+      if (!parse.success) {
+        return res.status(400).json({ success: false, error: parse.error.errors.map(e => e.message).join(', ') });
+      }
+
+      const { framework, inputText } = parse.data;
+      const { analyzeWithLLM } = await import('./llm');
+      const analysisResult = await analyzeWithLLM(framework, inputText);
+
+      if (!analysisResult.success) {
+        return res.status(500).json({ success: false, error: analysisResult.error });
+      }
+
+      // store analysis in DB/storage
+      const { storage } = await import('./storage');
+      const saved = await storage.createAnalysis({ framework, inputText, analysis: analysisResult.analysis });
+
+      res.json({ success: true, analysis: analysisResult.analysis, id: saved.id });
+    } catch (err: any) {
+      console.error('Error in /api/analyze', err);
+      res.status(500).json({ success: false, error: err.message || String(err) });
+    }
+  });
+
+  const server = await import("node:http").then(m => m.createServer(app));
+  return server;
   
   const server = await import("node:http").then(m => m.createServer(app));
   return server;

@@ -127,6 +127,33 @@ export async function registerRoutes(app: express.Application) {
     }
   });
 
+  // List recent analyses (used by client)
+  app.get('/api/analyses/recent', async (_req: Request, res: Response) => {
+    try {
+      const { storage } = await import('./storage');
+      const items = await storage.getRecentAnalyses(10);
+      res.json(items);
+    } catch (err: any) {
+      console.error('Error in /api/analyses/recent', err);
+      res.status(500).json({ error: err.message || String(err) });
+    }
+  });
+
+  // Get analysis by id
+  app.get('/api/analyses/:id', async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id, 10);
+      if (Number.isNaN(id)) return res.status(400).json({ error: 'Invalid id' });
+      const { storage } = await import('./storage');
+      const item = await storage.getAnalysis(id);
+      if (!item) return res.status(404).json({ error: 'Not found' });
+      res.json(item);
+    } catch (err: any) {
+      console.error('Error in /api/analyses/:id', err);
+      res.status(500).json({ error: err.message || String(err) });
+    }
+  });
+
   const server = await import("node:http").then(m => m.createServer(app));
   return server;
 }

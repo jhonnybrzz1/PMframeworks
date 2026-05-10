@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { AnalyzeResponse } from '@shared/schema';
+import { MAX_TOKENS } from "../shared/constants";
 
 const llmResponseSchema = z.object({
   summary: z.string(),
@@ -36,7 +37,7 @@ export async function analyzeWithLLM(framework: string, inputText: string): Prom
             { role: 'user', content: userPrompt }
           ],
           temperature: 0.2,
-          max_tokens: 800,
+          max_tokens: MAX_TOKENS,
         }),
       });
       const j = await resp.json();
@@ -51,7 +52,7 @@ export async function analyzeWithLLM(framework: string, inputText: string): Prom
         },
         body: JSON.stringify({
           inputs: `${systemPrompt}\n\n${userPrompt}`,
-          parameters: { max_new_tokens: 800, temperature: 0.2 }
+          parameters: { max_new_tokens: MAX_TOKENS, temperature: 0.2 }
         }),
       });
       const j = await resp.json();

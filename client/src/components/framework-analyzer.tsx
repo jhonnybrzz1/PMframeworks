@@ -205,7 +205,7 @@ export default function FrameworkAnalyzer({ onAnalysisComplete }: FrameworkAnaly
               <div className="mt-2 border-2 border-dashed border-slate-300 rounded-lg p-4 hover:border-primary-300 transition-colors">
                 <div className="text-center mb-4">
                   <Upload className="mx-auto h-8 w-8 text-slate-400 mb-2" />
-                  <p className="text-sm text-slate-600">Arraste arquivos aqui ou</p>
+                  <p className="text-sm text-slate-600">Arraste arquivo .txt aqui ou</p>
                   <Button
                     type="button"
                     variant="link"
@@ -219,7 +219,7 @@ export default function FrameworkAnalyzer({ onAnalysisComplete }: FrameworkAnaly
                     ref={fileInputRef}
                     type="file"
                     className="hidden"
-                    accept=".txt,.doc,.docx,.pdf"
+                    accept=".txt"
                     onChange={handleFileUpload}
                   />
                 </div>

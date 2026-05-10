@@ -22,19 +22,30 @@ export const analyzeDocument = async (data: AnalyzeRequest): Promise<AnalyzeResp
   return response.json();
 };
 
+export interface UploadError {
+  error: string;
+  code: string;
+  supportedFormats?: string[];
+}
+
 export const uploadFile = async (file: File): Promise<{ text: string }> => {
   const formData = new FormData();
   formData.append("file", file);
-  
+
   const response = await fetch("/api/upload", {
     method: "POST",
     body: formData,
   });
-  
+
   if (!response.ok) {
-    throw new Error("Erro ao fazer upload do arquivo");
+    const errorData: UploadError = await response.json().catch(() => ({
+      error: "Erro ao fazer upload do arquivo",
+      code: "UNKNOWN"
+    }));
+
+    throw new Error(errorData.error);
   }
-  
+
   return response.json();
 };
 

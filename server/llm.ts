@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { AnalyzeResponse } from '@shared/schema';
-import { MAX_TOKENS } from "../shared/constants";
+import { LLM_MAX_TOKENS, LLM_MODEL, LLM_TEMPERATURE } from "../shared/constants";
 
 const llmResponseSchema = z.object({
   summary: z.string(),
@@ -31,13 +31,13 @@ export async function analyzeWithLLM(framework: string, inputText: string): Prom
           'Authorization': `Bearer ${openaiKey}`,
         },
         body: JSON.stringify({
-          model: 'gpt-4o-mini',
+          model: LLM_MODEL,
           messages: [
             { role: 'system', content: systemPrompt },
             { role: 'user', content: userPrompt }
           ],
-          temperature: 0.2,
-          max_tokens: MAX_TOKENS,
+          temperature: LLM_TEMPERATURE,
+          max_tokens: LLM_MAX_TOKENS,
         }),
       });
       const j = await resp.json();
@@ -52,7 +52,7 @@ export async function analyzeWithLLM(framework: string, inputText: string): Prom
         },
         body: JSON.stringify({
           inputs: `${systemPrompt}\n\n${userPrompt}`,
-          parameters: { max_new_tokens: MAX_TOKENS, temperature: 0.2 }
+          parameters: { max_new_tokens: LLM_MAX_TOKENS, temperature: LLM_TEMPERATURE }
         }),
       });
       const j = await resp.json();
@@ -80,17 +80,28 @@ export async function analyzeWithLLM(framework: string, inputText: string): Prom
     try {
       parsed = JSON.parse(candidate);
     } catch (e) {
-      // Last resort: try to eval via Function (risky) — avoid. Return error
-      return { success: false, error: 'LLM returned non-JSON response and JSON parsing failed.' };
+      console.error('LLM JSON parse failed', {
+        framework,
+        responsePreview: rawText.slice(0, 240),
+      });
+      return { success: false, error: 'A IA retornou uma resposta fora do formato esperado. Tente novamente.' };
     }
 
     const parsedSafe = llmResponseSchema.safeParse(parsed);
     if (!parsedSafe.success) {
-      return { success: false, error: 'LLM response did not match expected schema.' };
+      console.error('LLM schema validation failed', {
+        framework,
+        issues: parsedSafe.error.issues,
+      });
+      return { success: false, error: 'A IA retornou uma análise incompleta. Tente novamente.' };
     }
 
     return { success: true, analysis: parsedSafe.data };
   } catch (err: any) {
+    console.error('LLM request failed', {
+      framework,
+      message: err?.message || String(err),
+    });
     return { success: false, error: err.message || String(err) };
   }
 }

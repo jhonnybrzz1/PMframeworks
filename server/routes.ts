@@ -1,21 +1,34 @@
 import express from "express";
 import type { Request, Response, NextFunction } from "express";
-import { createRequire } from 'module';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
 import multer from 'multer';
-import { MAX_FILE_SIZE, DEFAULT_RECENT_ANALYSES_LIMIT } from "../shared/constants";
+import {
+  DEFAULT_RECENT_ANALYSES_LIMIT,
+  MAX_FILE_SIZE,
+  PDF_FILE_PREFIX,
+  PDF_PAGE_OPTIONS,
+  PDF_TEMPLATE_RELATIVE_PATH,
+  SUPPORTED_UPLOAD_EXTENSIONS,
+} from "../shared/constants";
 import { AppError } from "./middleware/error-handler";
+import {
+  applyPDFTemplateReplacements,
+  buildPDFTemplateReplacements,
+  createTimestampedFileName,
+  formatAnalysisForPDF,
+  getPDFFooterTemplate,
+  getPDFHeaderTemplate,
+} from "../shared/pdf-helpers";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const require = createRequire(__dirname);
 
 // Multer config for file uploads (memory storage)
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: MAX_FILE_SIZE }, // 5MB limit
+  limits: { fileSize: MAX_FILE_SIZE },
 });
 
 export async function registerRoutes(app: express.Application) {
@@ -32,12 +45,11 @@ export async function registerRoutes(app: express.Application) {
 
     const ext = path.extname(file.originalname).toLowerCase();
 
-    // Only .txt is supported for now
-    if (ext !== '.txt') {
+    if (!SUPPORTED_UPLOAD_EXTENSIONS.includes(ext as typeof SUPPORTED_UPLOAD_EXTENSIONS[number])) {
       const err: AppError = new Error(`Formato ${ext || 'desconhecido'} ainda não é suportado. Use arquivo .txt ou cole o texto diretamente.`);
       err.status = 501;
       err.code = 'UNSUPPORTED_FORMAT';
-      err.details = { supportedFormats: ['.txt'] };
+      err.details = { supportedFormats: [...SUPPORTED_UPLOAD_EXTENSIONS] };
       return next(err);
     }
 
@@ -59,6 +71,7 @@ export async function registerRoutes(app: express.Application) {
 
   // Rota para gerar PDF com Playwright
   app.post('/api/generate-pdf', async (req: Request, res: Response, next: NextFunction) => {
+    const pdfStart = Date.now();
     try {
       const { chromium } = await import('playwright');
       const { analysis, inputText } = req.body;
@@ -70,69 +83,72 @@ export async function registerRoutes(app: express.Application) {
         return next(err);
       }
 
-      // --- 1. Ler o Template HTML ---
-      const templatePath = path.join(__dirname, 'reports', 'templates', 'analise.html');
+      const templateStart = Date.now();
+      const templatePath = path.join(__dirname, ...PDF_TEMPLATE_RELATIVE_PATH);
       if (!fs.existsSync(templatePath)) {
+        console.error('PDF template missing', { templatePath });
         const err: AppError = new Error('Template de relatório não encontrado.');
         err.status = 500;
         err.code = 'TEMPLATE_NOT_FOUND';
         return next(err);
       }
       let htmlTemplate = fs.readFileSync(templatePath, 'utf-8');
+      const templateDuration = Date.now() - templateStart;
 
-      // --- 2. Popular o Template com Dados Dinâmicos ---
-      const { formatAnalysisForPDF } = await import('../shared/pdf-helpers');
+      const formatStart = Date.now();
       const pdfData = formatAnalysisForPDF(analysis, inputText);
+      htmlTemplate = applyPDFTemplateReplacements(htmlTemplate, buildPDFTemplateReplacements(pdfData));
+      const formatDuration = Date.now() - formatStart;
       
-      const strengthsHtml = pdfData.strengths.map(s => `<li>${s}</li>`).join('');
-      const gapsHtml = pdfData.gaps.map(g => `<li>${g}</li>`).join('');
-
-      const replacements = {
-        '{{framework}}': pdfData.framework,
-        '{{docName}}': pdfData.docName,
-        '{{currentDate}}': pdfData.currentDate,
-        '{{summary}}': pdfData.summary,
-        '{{strengths}}': strengthsHtml,
-        '{{gaps}}': gapsHtml,
-        '{{recommendations}}': pdfData.recommendations,
-        '{{chartImagePath}}': pdfData.chartImagePath || ''
-      };
-
-      for (const [key, value] of Object.entries(replacements)) {
-        htmlTemplate = htmlTemplate.replace(new RegExp(key, 'g'), value);
-      }
-      
-      // --- 3. Gerar o PDF com Playwright ---
+      const playwrightStart = Date.now();
       const browser = await chromium.launch();
-      const page = await browser.newPage();
-      
-      await page.goto(`data:text/html;charset=UTF-8,${encodeURIComponent(htmlTemplate)}`, { waitUntil: 'networkidle' });
+      let pdfBuffer: Buffer;
+      try {
+        const page = await browser.newPage();
+        
+        await page.goto(`data:text/html;charset=UTF-8,${encodeURIComponent(htmlTemplate)}`, { waitUntil: 'networkidle' });
 
-      const headerTemplate = `<div style="font-family: Arial, sans-serif; font-size: 10px; color: #555; width: 100%; text-align: center; padding: 0 24mm;">Análise Crítica de Frameworks PM</div>`;
-      const footerTemplate = `<div style="font-family: Arial, sans-serif; font-size: 10px; color: #555; width: 100%; padding: 0 24mm; display: flex; justify-content: space-between;"><span>Data: <span class="date"></span></span><span>Página <span class="pageNumber"></span> de <span class="totalPages"></span></span></div>`;
+        pdfBuffer = await page.pdf({
+          format: PDF_PAGE_OPTIONS.format,
+          printBackground: true,
+          displayHeaderFooter: true,
+          headerTemplate: getPDFHeaderTemplate(),
+          footerTemplate: getPDFFooterTemplate(),
+          margin: PDF_PAGE_OPTIONS.margin,
+        });
+      } finally {
+        await browser.close();
+      }
+      const playwrightDuration = Date.now() - playwrightStart;
+      const totalPdfDuration = Date.now() - pdfStart;
 
-      const pdfBuffer = await page.pdf({
-        format: 'A4',
-        printBackground: true,
-        displayHeaderFooter: true,
-        headerTemplate,
-        footerTemplate,
-        margin: { top: '40px', bottom: '40px', left: '24mm', right: '24mm' }
-      });
-      
-      await browser.close();
+      console.log(JSON.stringify({
+        timestamp: new Date().toISOString(),
+        requestId: (req as any).requestId,
+        event: 'pdf_generation_complete',
+        durations: {
+          template: `${templateDuration}ms`,
+          format: `${formatDuration}ms`,
+          playwright: `${playwrightDuration}ms`,
+          total: `${totalPdfDuration}ms`
+        }
+      }));
 
       res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', `attachment; filename="analise-frameworks-${Date.now()}.pdf"`);
+      res.setHeader('Content-Disposition', `attachment; filename="${createTimestampedFileName(PDF_FILE_PREFIX, 'pdf')}"`);
       res.send(pdfBuffer);
       
     } catch (error) {
+      console.error('PDF generation failed', {
+        message: error instanceof Error ? error.message : String(error),
+      });
       return next(error);
     }
   });
 
   // LLM analyze route
   app.post('/api/analyze', async (req: Request, res: Response, next: NextFunction) => {
+    const analyzeStart = Date.now();
     try {
       const { analyzeRequestSchema } = await import('@shared/schema');
       const parse = analyzeRequestSchema.safeParse(req.body);
@@ -148,7 +164,11 @@ export async function registerRoutes(app: express.Application) {
       const analysisResult = await analyzeWithLLM(framework, inputText);
 
       if (!analysisResult.success) {
-        const err: AppError = new Error(analysisResult.error || 'Erro na análise do LLM');
+        console.error('Analysis failed', {
+          framework,
+          message: analysisResult.error,
+        });
+        const err: AppError = new Error(analysisResult.error || 'Não foi possível concluir a análise com IA. Tente novamente.');
         err.status = 500;
         err.code = 'LLM_ERROR';
         return next(err);
@@ -164,6 +184,15 @@ export async function registerRoutes(app: express.Application) {
       const { storage } = await import('./storage');
       const saved = await storage.createAnalysis({ framework, inputText, analysis: analysisResult.analysis as any });
 
+      const totalAnalyzeDuration = Date.now() - analyzeStart;
+      console.log(JSON.stringify({
+        timestamp: new Date().toISOString(),
+        requestId: (req as any).requestId,
+        event: 'analysis_complete',
+        framework,
+        duration: `${totalAnalyzeDuration}ms`
+      }));
+
       res.json({ success: true, analysis: analysisResult.analysis, id: saved.id });
     } catch (err: any) {
       return next(err);
@@ -171,10 +200,13 @@ export async function registerRoutes(app: express.Application) {
   });
 
   // List recent analyses
-  app.get('/api/analyses/recent', async (_req: Request, res: Response, next: NextFunction) => {
+  app.get('/api/analyses/recent', async (req: Request, res: Response, next: NextFunction) => {
     try {
+      const limit = parseInt(req.query.limit as string) || DEFAULT_RECENT_ANALYSES_LIMIT;
+      const offset = parseInt(req.query.offset as string) || 0;
+      
       const { storage } = await import('./storage');
-      const items = await storage.getRecentAnalyses(DEFAULT_RECENT_ANALYSES_LIMIT);
+      const items = await storage.getRecentAnalyses(limit, offset);
       res.json(items);
     } catch (err: any) {
       return next(err);

@@ -1,6 +1,7 @@
-import { pgTable, text, serial, timestamp, json } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, timestamp, json, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
+import { MAX_ANALYSIS_TEXT_LENGTH } from "./constants";
 
 export const analyses = pgTable("analyses", {
   id: serial("id").primaryKey(),
@@ -8,6 +9,10 @@ export const analyses = pgTable("analyses", {
   inputText: text("input_text").notNull(),
   analysis: json("analysis").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => {
+  return {
+    createdAtIndex: index("created_at_idx").on(table.createdAt),
+  };
 });
 
 export const insertAnalysisSchema = createInsertSchema(analyses).pick({
@@ -21,8 +26,13 @@ export type Analysis = typeof analyses.$inferSelect;
 
 // API request/response types
 export const analyzeRequestSchema = z.object({
-  framework: z.string().min(1, "Framework é obrigatório"),
-  inputText: z.string().min(1, "Texto do documento é obrigatório"),
+  framework: z
+    .string({ required_error: "Framework é obrigatório" })
+    .min(1, "Framework é obrigatório"),
+  inputText: z
+    .string({ required_error: "Texto do documento é obrigatório" })
+    .min(1, "Texto do documento é obrigatório")
+    .max(MAX_ANALYSIS_TEXT_LENGTH, `Texto do documento deve ter no máximo ${MAX_ANALYSIS_TEXT_LENGTH} caracteres`),
 });
 
 export type AnalyzeRequest = z.infer<typeof analyzeRequestSchema>;

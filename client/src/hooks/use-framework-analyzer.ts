@@ -3,6 +3,7 @@ import { useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { analyzeDocument, uploadFile } from "@/lib/api";
 import { FRAMEWORKS, type FrameworkInfo } from "@/types/analysis";
+import { MAX_ANALYSIS_TEXT_LENGTH } from "@shared/constants";
 
 export function useFrameworkAnalyzer(onAnalysisComplete: (analysis: any, inputText: string) => void) {
   const [selectedFramework, setSelectedFramework] = useState<string>("");
@@ -34,9 +35,12 @@ export function useFrameworkAnalyzer(onAnalysisComplete: (analysis: any, inputTe
       }
     },
     onError: (error) => {
+      console.error("Analysis request failed", {
+        message: error instanceof Error ? error.message : String(error),
+      });
       toast({
         title: "Erro na análise",
-        description: "Erro ao processar documento. Tente novamente.",
+        description: error instanceof Error ? error.message : "Não foi possível processar o documento. Tente novamente.",
         variant: "destructive",
       });
     },
@@ -51,10 +55,13 @@ export function useFrameworkAnalyzer(onAnalysisComplete: (analysis: any, inputTe
         description: "Conteúdo do arquivo foi adicionado ao campo de texto.",
       });
     },
-    onError: () => {
+    onError: (error) => {
+      console.error("File upload failed", {
+        message: error instanceof Error ? error.message : String(error),
+      });
       toast({
         title: "Erro no upload",
-        description: "Erro ao processar arquivo. Tente novamente.",
+        description: error instanceof Error ? error.message : "Não foi possível ler o arquivo enviado.",
         variant: "destructive",
       });
     },
@@ -94,6 +101,15 @@ export function useFrameworkAnalyzer(onAnalysisComplete: (analysis: any, inputTe
       toast({
         title: "Documento obrigatório",
         description: "Adicione o texto do documento para análise.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (documentText.length > MAX_ANALYSIS_TEXT_LENGTH) {
+      toast({
+        title: "Documento muito longo",
+        description: `Reduza o texto para até ${MAX_ANALYSIS_TEXT_LENGTH} caracteres antes da análise.`,
         variant: "destructive",
       });
       return;

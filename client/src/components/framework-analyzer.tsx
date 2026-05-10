@@ -6,6 +6,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { FRAMEWORKS, type FrameworkInfo } from "@/types/analysis";
 import { ChartLine, Upload, Trash2, Info, Loader2, Star } from "lucide-react";
+import {
+  MAX_ANALYSIS_TEXT_LENGTH,
+  MIN_DETAILED_ANALYSIS_TEXT_LENGTH,
+  SUPPORTED_UPLOAD_EXTENSIONS,
+} from "@shared/constants";
 
 import { FavoriteFrameworks } from "./analyzer/favorite-frameworks";
 import { FrameworkSuggestions } from "./analyzer/framework-suggestions";
@@ -38,6 +43,8 @@ export default function FrameworkAnalyzer({ onAnalysisComplete }: FrameworkAnaly
       uploadMutation.mutate(file);
     }
   };
+
+  const supportedUploadLabel = SUPPORTED_UPLOAD_EXTENSIONS.join(", ");
 
   const frameworksByCategory = FRAMEWORKS.reduce((acc, framework) => {
     if (!acc[framework.category]) {
@@ -98,7 +105,7 @@ export default function FrameworkAnalyzer({ onAnalysisComplete }: FrameworkAnaly
               <div className="mt-2 border-2 border-dashed border-slate-300 rounded-lg p-4 hover:border-primary-300 transition-colors">
                 <div className="text-center mb-4">
                   <Upload className="mx-auto h-8 w-8 text-slate-400 mb-2" />
-                  <p className="text-sm text-slate-600">Arraste arquivo .txt aqui ou</p>
+                  <p className="text-sm text-slate-600">Arraste arquivo {supportedUploadLabel} aqui ou</p>
                   <Button
                     type="button"
                     variant="link"
@@ -112,7 +119,7 @@ export default function FrameworkAnalyzer({ onAnalysisComplete }: FrameworkAnaly
                     ref={fileInputRef}
                     type="file"
                     className="hidden"
-                    accept=".txt"
+                    accept={SUPPORTED_UPLOAD_EXTENSIONS.join(",")}
                     onChange={handleFileUpload}
                   />
                 </div>
@@ -124,16 +131,16 @@ export default function FrameworkAnalyzer({ onAnalysisComplete }: FrameworkAnaly
                 />
                 <div className="text-xs text-slate-500 mt-1 flex justify-between">
                   <span>{documentText.length} caracteres</span>
-                  <span className={documentText.length < 100 ? "text-orange-500" : documentText.length > 8000 ? "text-red-500" : "text-green-600"}>
-                    {documentText.length < 100 ? "Muito curto para análise detalhada" : 
-                     documentText.length > 8000 ? "Texto muito longo (máx. 8000)" : 
+                  <span className={documentText.length < MIN_DETAILED_ANALYSIS_TEXT_LENGTH ? "text-orange-500" : documentText.length > MAX_ANALYSIS_TEXT_LENGTH ? "text-red-500" : "text-green-600"}>
+                    {documentText.length < MIN_DETAILED_ANALYSIS_TEXT_LENGTH ? "Muito curto para análise detalhada" : 
+                     documentText.length > MAX_ANALYSIS_TEXT_LENGTH ? `Texto muito longo (máx. ${MAX_ANALYSIS_TEXT_LENGTH})` : 
                      "Tamanho ideal"}
                   </span>
                 </div>
               </div>
             </div>
 
-            {!selectedFramework && documentText.length > 100 && (
+            {!selectedFramework && documentText.length > MIN_DETAILED_ANALYSIS_TEXT_LENGTH && (
               <FrameworkSuggestions 
                 frameworks={FRAMEWORKS}
                 onSelect={handleFrameworkChange}
@@ -143,7 +150,7 @@ export default function FrameworkAnalyzer({ onAnalysisComplete }: FrameworkAnaly
             <div className="flex space-x-3">
               <Button
                 onClick={handleAnalyze}
-                disabled={analyzeMutation.isPending || !selectedFramework || !documentText.trim() || documentText.length > 8000}
+                disabled={analyzeMutation.isPending || !selectedFramework || !documentText.trim() || documentText.length > MAX_ANALYSIS_TEXT_LENGTH}
                 className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90"
               >
                 {analyzeMutation.isPending ? (

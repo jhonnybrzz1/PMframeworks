@@ -1,3 +1,5 @@
+import React from "react";
+import type { AnalysisResult } from "@/types/analysis";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TabsContent } from "@/components/ui/tabs";
 import { 
@@ -9,19 +11,11 @@ import {
   Settings 
 } from "lucide-react";
 
-interface AnalysisResult {
-  summary: string;
-  strengths: string[];
-  gaps: string[];
-  recommendations: string;
-  framework: string;
-}
-
-interface AnalysisContentProps {
+interface ResultsTableProps {
   analysis: AnalysisResult;
 }
 
-export function AnalysisContent({ analysis }: AnalysisContentProps) {
+export function ResultsTable({ analysis }: ResultsTableProps) {
   const formatListItems = (items: string[]) => {
     return items.map((item) => {
       return item.replace(/^[•\-\*✅❌]\s*/, '').trim();

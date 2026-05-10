@@ -3,10 +3,11 @@ import { getDb } from "./db";
 import { desc, eq } from "drizzle-orm";
 import fs from "fs";
 import path from "path";
+import { DEFAULT_RECENT_ANALYSES_LIMIT } from "../shared/constants";
 
 export interface IStorage {
   createAnalysis(analysis: InsertAnalysis): Promise<Analysis>;
-  getRecentAnalyses(limit?: number): Promise<Analysis[]>;
+  getRecentAnalyses(limit?: number, offset?: number): Promise<Analysis[]>;
   getAnalysis(id: number): Promise<Analysis | undefined>;
 }
 
@@ -30,11 +31,12 @@ export class MemStorage implements IStorage {
     return analysis;
   }
 
-  async getRecentAnalyses(limit = 10): Promise<Analysis[]> {
+  async getRecentAnalyses(limit = DEFAULT_RECENT_ANALYSES_LIMIT, offset = 0): Promise<Analysis[]> {
     return Array.from(this.analyses.values())
       .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
-      .slice(0, limit);
+      .slice(offset, offset + limit);
   }
+// ... rest of file ...
 
   async getAnalysis(id: number): Promise<Analysis | undefined> {
     return this.analyses.get(id);
@@ -89,9 +91,11 @@ export class FileStorage implements IStorage {
     return analysis;
   }
 
-  async getRecentAnalyses(limit = 10): Promise<Analysis[]> {
+  async getRecentAnalyses(limit = 10, offset = 0): Promise<Analysis[]> {
     const items = this.readAll();
-    return items.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()).slice(0, limit);
+    return items
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+      .slice(offset, offset + limit);
   }
 
   async getAnalysis(id: number): Promise<Analysis | undefined> {
@@ -119,9 +123,15 @@ export class PostgresStorage implements IStorage {
     } as Analysis;
   }
 
-  async getRecentAnalyses(limit = 10): Promise<Analysis[]> {
+  async getRecentAnalyses(limit = 10, offset = 0): Promise<Analysis[]> {
     const db = getDb();
-    const rows = await db.select().from(analyses).orderBy(desc(analyses.createdAt)).limit(limit);
+    const rows = await db
+      .select()
+      .from(analyses)
+      .orderBy(desc(analyses.createdAt))
+      .limit(limit)
+      .offset(offset);
+      
     return rows.map(r => ({
       id: r.id as number,
       framework: r.framework,

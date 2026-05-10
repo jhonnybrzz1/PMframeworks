@@ -1,22 +1,15 @@
+import React from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs } from "@/components/ui/tabs";
 import { useQuery } from "@tanstack/react-query";
 import { ChartLine } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import type { AnalysisResult } from "@/types/analysis";
 
-import { AnalysisHeader } from "./analysis/analysis-header";
-import { AnalysisContent } from "./analysis/analysis-content";
-import { ExportButtons } from "./analysis/export-buttons";
+import { AnalysisResultsHeader } from "./analysis/analysis-results-header";
+import { ResultsTable } from "./analysis/results-table";
 import { RecentAnalysesList } from "./analysis/recent-analyses-list";
 import { useAnalysisExport } from "@/hooks/use-analysis-export";
-
-interface AnalysisResult {
-  summary: string;
-  strengths: string[];
-  gaps: string[];
-  recommendations: string;
-  framework: string;
-}
 
 interface AnalysisResultsProps {
   analysis: AnalysisResult | null;
@@ -43,28 +36,19 @@ export default function AnalysisResults({ analysis, inputText }: AnalysisResults
           <Tabs defaultValue="analysis" className="w-full">
             <Card>
               <CardHeader className="pb-3">
-                <div className="flex items-center justify-between mb-4">
-                  <AnalysisHeader framework={analysis.framework} />
-                  <ExportButtons 
-                    onCopy={handleCopy}
-                    onExportMarkdown={handleExportMarkdown}
-                    onExportPDF={handleExportPDF}
-                    isCopied={isCopied}
-                  />
-                </div>
-
-                <TabsList className="grid w-full grid-cols-6">
-                  <TabsTrigger value="analysis" className="text-xs">Visão Geral</TabsTrigger>
-                  <TabsTrigger value="summary" className="text-xs">Resumo</TabsTrigger>
-                  <TabsTrigger value="strengths" className="text-xs">Pontos Fortes</TabsTrigger>
-                  <TabsTrigger value="gaps" className="text-xs">Lacunas</TabsTrigger>
-                  <TabsTrigger value="recommendations" className="text-xs">Recomendações</TabsTrigger>
-                  <TabsTrigger value="framework" className="text-xs">Framework</TabsTrigger>
-                </TabsList>
+                <AnalysisResultsHeader
+                  framework={analysis.framework}
+                  exportActions={{
+                    onCopy: handleCopy,
+                    onExportMarkdown: handleExportMarkdown,
+                    onExportPDF: handleExportPDF,
+                  }}
+                  isCopied={isCopied}
+                />
               </CardHeader>
 
               <CardContent className="pt-0">
-                <AnalysisContent analysis={analysis} />
+                <ResultsTable analysis={analysis} />
               </CardContent>
             </Card>
           </Tabs>

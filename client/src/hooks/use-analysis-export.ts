@@ -1,13 +1,12 @@
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
-
-interface AnalysisResult {
-  summary: string;
-  strengths: string[];
-  gaps: string[];
-  recommendations: string;
-  framework: string;
-}
+import type { AnalysisResult } from "@/types/analysis";
+import {
+  buildPDFRequestPayload,
+  createTimestampedFileName,
+  formatAnalysisForPDF,
+} from "@shared/pdf-helpers";
+import { COPY_RESET_DELAY_MS, MARKDOWN_FILE_PREFIX, PDF_FILE_PREFIX } from "@shared/constants";
 
 export function useAnalysisExport(analysis: AnalysisResult | null, inputText?: string) {
   const { toast } = useToast();
@@ -18,15 +17,18 @@ export function useAnalysisExport(analysis: AnalysisResult | null, inputText?: s
     try {
       await navigator.clipboard.writeText(JSON.stringify(analysis, null, 2));
       setIsCopied(true);
-      setTimeout(() => setIsCopied(false), 2000);
+      setTimeout(() => setIsCopied(false), COPY_RESET_DELAY_MS);
       toast({
         title: "Copiado",
         description: "Conteúdo copiado para a área de transferência.",
       });
     } catch (error) {
+      console.error("Copy analysis failed", {
+        message: error instanceof Error ? error.message : String(error),
+      });
       toast({
         title: "Erro ao copiar",
-        description: "Não foi possível copiar o conteúdo.",
+        description: "Não foi possível acessar a área de transferência do navegador.",
         variant: "destructive",
       });
     }
@@ -61,7 +63,7 @@ Gerado por Frameworks - Análise Crítica para PMs
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `analise-${Date.now()}.md`;
+    a.download = createTimestampedFileName(MARKDOWN_FILE_PREFIX, 'md');
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -77,11 +79,8 @@ Gerado por Frameworks - Análise Crítica para PMs
     if (!analysis) return;
 
     try {
-      const pdfData = {
-        analysis,
-        inputText,
-        timestamp: Date.now()
-      };
+      formatAnalysisForPDF(analysis, inputText);
+      const pdfData = buildPDFRequestPayload(analysis, inputText);
 
       const response = await fetch('/api/generate-pdf', {
         method: 'POST',
@@ -92,14 +91,15 @@ Gerado por Frameworks - Análise Crítica para PMs
       });
 
       if (!response.ok) {
-        throw new Error('Erro ao gerar PDF no servidor');
+        const errorData = await response.json().catch(() => null);
+        throw new Error(errorData?.error || `Falha no servidor ao gerar PDF (${response.status}).`);
       }
 
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `analise-frameworks-${Date.now()}.pdf`;
+      a.download = createTimestampedFileName(PDF_FILE_PREFIX, 'pdf', pdfData.timestamp);
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -110,10 +110,12 @@ Gerado por Frameworks - Análise Crítica para PMs
         description: "Análise exportada como PDF estruturado com sucesso.",
       });
     } catch (error) {
-      console.error('PDF export error:', error);
+      console.error('PDF export failed', {
+        message: error instanceof Error ? error.message : String(error),
+      });
       toast({
         title: "Erro no PDF",
-        description: "Falha ao gerar o PDF. Tente novamente.",
+        description: error instanceof Error ? error.message : "Falha ao gerar o PDF. Tente novamente.",
         variant: "destructive",
       });
     }

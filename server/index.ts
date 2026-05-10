@@ -2,7 +2,7 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 
-import { routeLogger, errorHandler } from "./middleware/error-handler";
+import { routeLogger } from "./middleware/error-handler";
 
 const app = express();
 app.use(express.json());

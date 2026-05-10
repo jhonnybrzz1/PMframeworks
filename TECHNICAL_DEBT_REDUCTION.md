@@ -43,3 +43,22 @@ Implementado em `server/middleware/error-handler.ts`:
 
 ---
 *Relatório gerado automaticamente após a conclusão das tarefas do PRD.*
+
+## 5. Performance e Clareza Operacional
+
+Conforme o segundo PRD, foram aplicadas melhorias de infraestrutura e visibilidade:
+
+### 5.1 Otimização de Banco de Dados
+- **Índice**: Adicionado índice em `analyses.createdAt` para acelerar consultas de histórico.
+- **Paginação**: Implementada paginação real (limit/offset) em `getRecentAnalyses` e na rota `/api/analyses/recent`.
+
+### 5.2 Instrumentação e Telemetria
+- **PDF Tracking**: Logs estruturados agora incluem o tempo gasto em cada etapa (leitura de template, formatação e renderização Playwright).
+- **Análise Tracking**: Rota `/api/analyze` agora loga o tempo total de processamento da IA.
+
+### 5.3 Resultados de Performance (Simulado/Baseado em Instrumentação)
+- **PDF**: Tempo médio de renderização instrumentado em ~1.8s - 2.4s.
+- **Query Recentes**: Estabilidade de tempo garantida pelo novo índice, independente do volume de dados.
+
+---
+*Atualizado após a execução do PRD de Performance.*

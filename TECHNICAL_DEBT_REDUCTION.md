@@ -7,6 +7,7 @@ Este documento consolida os resultados da execução do PRD de melhoria técnica
 | Métrica | Baseline Inicial | Estado Final | Ganho |
 |---------|------------------|--------------|-------|
 | Linhas de código em `analysis-results.tsx` | 480 linhas | 112 linhas | **-76%** |
+| Linhas de código em `framework-analyzer.tsx` | 271 linhas | 217 linhas | **-20%** |
 | Arquivos de Backup (`.backup`, `.bak`) | 2 identificados | 0 | **-100%** |
 | Valores Hardcoded (`fileSize`, `max_tokens`) | Espalhados (server/routes, server/llm) | Centralizados em `shared/constants.ts` | **Centralizado** |
 | Erros em Rotas Críticas | Mensagens genéricas / strings simples | Shape estável com `errorCode` e `requestId` | **Padronizado** |
@@ -21,6 +22,11 @@ O componente monolítico `analysis-results.tsx` foi decomposto em:
 - **`ExportButtons`**: Botões de ação para MD e PDF.
 - **`RecentAnalysesList`**: Listagem do histórico de análises.
 - **`useAnalysisExport` (Hook)**: Toda a lógica de clipboard e requisições de exportação.
+
+O componente `framework-analyzer.tsx` também foi refatorado:
+- **`FavoriteFrameworks`**: Gestão visual de frameworks favoritos.
+- **`FrameworkSuggestions`**: Sugestões inteligentes baseadas no input do usuário.
+- **`useFrameworkAnalyzer` (Hook)**: Lógica de seleção, mutações de análise e upload.
 
 ## 3. Sistema de Erros e Logs
 

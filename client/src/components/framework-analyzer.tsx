@@ -1,118 +1,36 @@
-import { useState, useRef } from "react";
+import { useRef } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { useMutation } from "@tanstack/react-query";
-import { useToast } from "@/hooks/use-toast";
-import { analyzeDocument, uploadFile } from "@/lib/api";
 import { FRAMEWORKS, type FrameworkInfo } from "@/types/analysis";
-import { ChartLine, Upload, Trash2, Info, Loader2, Star, Heart } from "lucide-react";
+import { ChartLine, Upload, Trash2, Info, Loader2, Star } from "lucide-react";
+
+import { FavoriteFrameworks } from "./analyzer/favorite-frameworks";
+import { FrameworkSuggestions } from "./analyzer/framework-suggestions";
+import { useFrameworkAnalyzer } from "@/hooks/use-framework-analyzer";
 
 interface FrameworkAnalyzerProps {
   onAnalysisComplete: (analysis: any, inputText: string) => void;
 }
 
 export default function FrameworkAnalyzer({ onAnalysisComplete }: FrameworkAnalyzerProps) {
-  const [selectedFramework, setSelectedFramework] = useState<string>("");
-  const [documentText, setDocumentText] = useState<string>("");
-  const [selectedFrameworkInfo, setSelectedFrameworkInfo] = useState<FrameworkInfo | null>(null);
-  const [favoriteFrameworks, setFavoriteFrameworks] = useState<string[]>(() => {
-    const saved = localStorage.getItem('favoriteFrameworks');
-    return saved ? JSON.parse(saved) : [];
-  });
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { toast } = useToast();
-
-  const analyzeMutation = useMutation({
-    mutationFn: analyzeDocument,
-    onSuccess: (data) => {
-      if (data.success && data.analysis) {
-        onAnalysisComplete(data.analysis, documentText);
-        toast({
-          title: "Análise concluída",
-          description: "Documento analisado com sucesso!",
-        });
-      } else {
-        toast({
-          title: "Erro na análise",
-          description: data.error || "Erro desconhecido",
-          variant: "destructive",
-        });
-      }
-    },
-    onError: (error) => {
-      toast({
-        title: "Erro na análise",
-        description: "Erro ao processar documento. Tente novamente.",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const uploadMutation = useMutation({
-    mutationFn: uploadFile,
-    onSuccess: (data) => {
-      setDocumentText(data.text);
-      toast({
-        title: "Arquivo carregado",
-        description: "Conteúdo do arquivo foi adicionado ao campo de texto.",
-      });
-    },
-    onError: () => {
-      toast({
-        title: "Erro no upload",
-        description: "Erro ao processar arquivo. Tente novamente.",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const handleFrameworkChange = (value: string) => {
-    setSelectedFramework(value);
-    const framework = FRAMEWORKS.find(f => f.id === value);
-    setSelectedFrameworkInfo(framework || null);
-  };
-
-  const toggleFavorite = (frameworkId: string) => {
-    const isNowFavorite = !favoriteFrameworks.includes(frameworkId);
-    const newFavorites = isNowFavorite
-      ? [...favoriteFrameworks, frameworkId]
-      : favoriteFrameworks.filter(id => id !== frameworkId);
-
-    setFavoriteFrameworks(newFavorites);
-    localStorage.setItem('favoriteFrameworks', JSON.stringify(newFavorites));
-    toast({
-      title: isNowFavorite ? "Adicionado aos favoritos" : "Removido dos favoritos",
-      description: "Framework atualizado em seus favoritos.",
-    });
-  };
-
-  const handleAnalyze = () => {
-    if (!selectedFramework) {
-      toast({
-        title: "Framework obrigatório",
-        description: "Selecione um framework para análise.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!documentText.trim()) {
-      toast({
-        title: "Documento obrigatório",
-        description: "Adicione o texto do documento para análise.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    analyzeMutation.mutate({
-      framework: selectedFramework,
-      inputText: documentText,
-    });
-  };
+  
+  const {
+    selectedFramework,
+    documentText,
+    setDocumentText,
+    selectedFrameworkInfo,
+    favoriteFrameworks,
+    analyzeMutation,
+    uploadMutation,
+    handleFrameworkChange,
+    toggleFavorite,
+    handleAnalyze,
+    handleClear
+  } = useFrameworkAnalyzer(onAnalysisComplete);
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -121,13 +39,6 @@ export default function FrameworkAnalyzer({ onAnalysisComplete }: FrameworkAnaly
     }
   };
 
-  const handleClear = () => {
-    setDocumentText("");
-    setSelectedFramework("");
-    setSelectedFrameworkInfo(null);
-  };
-
-  // Group frameworks by category
   const frameworksByCategory = FRAMEWORKS.reduce((acc, framework) => {
     if (!acc[framework.category]) {
       acc[framework.category] = [];
@@ -138,28 +49,12 @@ export default function FrameworkAnalyzer({ onAnalysisComplete }: FrameworkAnaly
 
   return (
     <div className="space-y-6">
-      {/* Favorites Card */}
-      {favoriteFrameworks.length > 0 && (
-        <Card>
-          <CardContent className="p-4">
-            <h3 className="text-sm font-medium mb-2">Favoritos</h3>
-            <div className="flex flex-wrap gap-2">
-              {favoriteFrameworks.map(id => {
-                const f = FRAMEWORKS.find(fr => fr.id === id);
-                if (!f) return null;
-                return (
-                  <div key={id} className="flex items-center space-x-2 bg-white border px-3 py-1 rounded">
-                    <Button size="sm" variant="ghost" onClick={() => handleFrameworkChange(id)}>{f.name}</Button>
-                    <Button size="sm" variant="outline" onClick={() => toggleFavorite(id)}>
-                      <Star className="h-4 w-4 text-yellow-400" />
-                    </Button>
-                  </div>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      <FavoriteFrameworks 
+        favorites={favoriteFrameworks}
+        frameworks={FRAMEWORKS}
+        onSelect={handleFrameworkChange}
+        onToggle={toggleFavorite}
+      />
 
       <Card>
         <CardContent className="p-6">
@@ -171,7 +66,6 @@ export default function FrameworkAnalyzer({ onAnalysisComplete }: FrameworkAnaly
           </div>
 
           <div className="space-y-6">
-            {/* Framework Selection */}
             <div>
               <Label htmlFor="framework" className="text-sm font-medium text-slate-700">
                 Framework de Análise <span className="text-red-500">*</span>
@@ -197,7 +91,6 @@ export default function FrameworkAnalyzer({ onAnalysisComplete }: FrameworkAnaly
               </Select>
             </div>
 
-            {/* Document Input */}
             <div>
               <Label htmlFor="document" className="text-sm font-medium text-slate-700">
                 Documento para Análise <span className="text-red-500">*</span>
@@ -240,30 +133,13 @@ export default function FrameworkAnalyzer({ onAnalysisComplete }: FrameworkAnaly
               </div>
             </div>
 
-            {/* Quick Framework Suggestions */}
             {!selectedFramework && documentText.length > 100 && (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <h4 className="text-sm font-medium text-blue-900 mb-2">Frameworks Recomendados:</h4>
-                <div className="flex flex-wrap gap-2">
-                  {['lean-canvas', 'swot-analysis', 'opportunity-assessment'].map((framework) => {
-                    const frameworkInfo = FRAMEWORKS.find(f => f.id === framework);
-                    return frameworkInfo ? (
-                      <Button
-                        key={framework}
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleFrameworkChange(framework)}
-                        className="text-xs bg-white hover:bg-blue-100 border-blue-300"
-                      >
-                        {frameworkInfo.name}
-                      </Button>
-                    ) : null;
-                  })}
-                </div>
-              </div>
+              <FrameworkSuggestions 
+                frameworks={FRAMEWORKS}
+                onSelect={handleFrameworkChange}
+              />
             )}
 
-            {/* Action Buttons */}
             <div className="flex space-x-3">
               <Button
                 onClick={handleAnalyze}
@@ -287,7 +163,6 @@ export default function FrameworkAnalyzer({ onAnalysisComplete }: FrameworkAnaly
               </Button>
             </div>
 
-            {/* Loading State */}
             {analyzeMutation.isPending && (
               <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
                 <div className="flex items-center justify-between">
@@ -311,7 +186,6 @@ export default function FrameworkAnalyzer({ onAnalysisComplete }: FrameworkAnaly
         </CardContent>
       </Card>
 
-      {/* Framework Info Card */}
       {selectedFrameworkInfo && (
         <Card className="bg-gradient-to-br from-slate-50 to-slate-100 border-slate-200">
           <CardContent className="p-6">
@@ -322,7 +196,7 @@ export default function FrameworkAnalyzer({ onAnalysisComplete }: FrameworkAnaly
               </div>
               <div>
                 <Button size="sm" variant="ghost" onClick={() => selectedFramework && toggleFavorite(selectedFramework)}>
-                  {favoriteFrameworks.includes(selectedFramework) ? <Star className="h-4 w-4 text-yellow-400" /> : <Star className="h-4 w-4 text-slate-400" />}
+                  {favoriteFrameworks.includes(selectedFramework) ? <Star className="h-4 w-4 text-yellow-400 fill-yellow-400" /> : <Star className="h-4 w-4 text-slate-400" />}
                 </Button>
               </div>
             </h3>

@@ -1,2 +1,0 @@
-{"id":"c49ebc70-9238-4052-9f86-9267e3e50000","ts":"2026-05-10T03:23:24.998Z","path":"/Users/josejonathanalvesdeazevedo/PMframeworks/ANALISE_360_PRODUTO.md","version":"1.0.0","taskID":"a0b58b1b-a3a0-43b7-8300-20219bd1bc72"}
-{"id":"3032282f-2d33-472a-9397-adec8200c6e4","ts":"2026-05-10T03:25:29.315Z","path":"/Users/josejonathanalvesdeazevedo/PMframeworks/ANALISE_360_PRODUTO.md","version":"1.0.0","taskID":"a0b58b1b-a3a0-43b7-8300-20219bd1bc72"}
